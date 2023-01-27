@@ -6,8 +6,8 @@
 #include <pybind11/numpy.h>
 
 #include <werkzeugkiste/geometry/vector.h>
-
-//#include <werkzeugkiste-bindings/logging.h>
+//TODO move logging into werkzeugkiste!
+#include <werkzeugkiste-bindings/logging.h>
 
 namespace werkzeugkiste::bindings {
 
@@ -27,7 +27,7 @@ werkzeugkiste::geometry::Vec<Tp, Dim> VecFromTupleOrList(
     std::ostringstream s;
     s << "Cannot cast " << py_type << " with " << tpl.size()
       << " elements to `" << module_name << "." << VC::TypeName() << "`!";
-    SPDLOG_ERROR(s.str());
+    WKZLOG_ERROR(s.str());
     throw std::invalid_argument(s.str());
   }
 
@@ -114,7 +114,7 @@ werkzeugkiste::geometry::Vec<VTp, Dim> VecFromArrayT(
     std::ostringstream s;
     s << "Cannot cast array with " << arr.size() << " elements to `"
       << module_name << '.' << VC::TypeName() << "`!";
-    SPDLOG_ERROR(s.str());
+    WKZLOG_ERROR(s.str());
     throw std::invalid_argument(s.str());
   }
 
@@ -191,7 +191,7 @@ werkzeugkiste::geometry::Vec<Tp, Dim> VecFromArray(
     s += module_name;
     s += '.';
     s += VC::TypeName() + "`!";
-    SPDLOG_ERROR(s);
+    WKZLOG_ERROR(s);
     throw std::invalid_argument(s);
   }
 }
@@ -224,7 +224,7 @@ werkzeugkiste::geometry::Vec<Tp, Dim> VecFromPyObject(
   s << "Cannot cast `" << type << "` to `"
     << module_name << '.' << VC::TypeName()
     << "`. Only tuple, list and numpy.ndarray is supported!";
-  SPDLOG_ERROR(s.str());
+  WKZLOG_ERROR(s.str());
   throw std::invalid_argument(s.str());
 }
 
@@ -548,6 +548,7 @@ inline void RegisterVectorAdditionSubtraction(
 //#endif  // __clang__
 }
 
+//TODO py::tuple homogeneous()
 
 template<class V>
 inline void RegisterVectorMultiplication(
@@ -895,10 +896,13 @@ void RegisterVector(pybind11::module &m) {
 
 
 //TODO follow best practices: https://stackoverflow.com/a/2626364/400948
+  //TODO test eval(repr(x)) == x
   vec_cls.def(
         "__repr__",
-        [](const VC &v) {
-          return "<"  + v.ToString(true) + ">";
+        [module_name](const VC &v) {
+          std::ostringstream s;
+          s << module_name << '.' << v.ToString(true);  //TODO add param to werkzeugkiste.tostring (shorten_precision)!
+          return s.str();
         });
 
   //TODO pretty print
@@ -954,6 +958,19 @@ void RegisterVector(pybind11::module &m) {
   vec_cls.def(
         "copy",
         [](const VC &self) { return VC(self); },
+        doc.str().c_str());
+
+
+  std::ostringstream().swap(doc);
+  doc << "Returns the `homogeneous representation <https://en.wikipedia.org/wiki/Homogeneous_coordinates>`__ "
+         "of this vector, *i.e.* a "
+      << (Dim + 1) << "-element `tuple`, where the additional dimension is "
+                      "set to 1.";
+  vec_cls.def(
+        "homogeneous",
+        [](const VC &self) {
+            return VecToTuple<Tp, Dim + 1>(self.Homogeneous());
+        },
         doc.str().c_str());
 
 
