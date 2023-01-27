@@ -211,14 +211,16 @@ def test_pickling():
             pzgeo.Vec2d(-0.03, -0.01234),
             pzgeo.Vec3d(1, 2, 3),
             pzgeo.Vec3d(-0.001, -0.0002, -0.0003),
-            pzgeo.Vec3d([1, 2, 3])]
+            pzgeo.Vec3d([1, 2, 3]),
+            pzgeo.Vec2i([-1234, 42]),
+            pzgeo.Vec3i([1234000, -1234, 3567])]
 
     for vec in vecs:
         data = pickle.dumps(vec)
         restored = pickle.loads(data)
         assert vec == restored
 
-#TODO eval(repr... here and also test integral types
+        assert eval(repr(vec)) == vec
 
 
 def test_vector_conversion():

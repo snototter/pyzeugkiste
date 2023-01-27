@@ -17,13 +17,14 @@ endif()
 
 # This build's version could have already been set, e.g. by the CMakeBuild
 # extension in `setup.py`
-if(NOT pyzeugkiste_VERSION)
-  file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" pyzeugkiste_VERSION)
-endif()
+#if(NOT pyzeugkiste_VERSION)
+#  file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" pyzeugkiste_VERSION)
+#    set(pyzeugkiste_VERSION "dev")
+#endif()
 
 
 # Set up the project
-project(pyzeugkiste VERSION ${pyzeugkiste_VERSION} LANGUAGES CXX)
+#project(pyzeugkiste VERSION ${pyzeugkiste_VERSION} LANGUAGES CXX)
 project(
     pyzeugkiste
     VERSION ${pyzeugkiste_VERSION}
@@ -116,10 +117,17 @@ target_link_libraries(
 target_compile_definitions(
     ${pyzeugkiste_BINDINGS_TARGET}
     PRIVATE
-    pyzeugkiste_VERSION_INFO=${pyzeugkiste_VERSION}
     pyzeugkiste_PYMODULE_IDENTIFIER=${pyzeugkiste_BINDINGS_TARGET}
     pyzeugkiste_PYMODULE_PRINT_NAME=${pyzeugkiste_BINDINGS_PRINT_NAME}
 )
+
+if(pyzeugkiste_VERSION)
+    target_compile_definitions(
+        ${pyzeugkiste_BINDINGS_TARGET}
+        PRIVATE
+        pyzeugkiste_VERSION_INFO=${pyzeugkiste_VERSION}
+    )
+endif()
 
 
 set_target_properties(
