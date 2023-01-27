@@ -56,4 +56,3 @@ class ValidateTime(argparse.Action):
         except ValueError:
             raise ValueError(f'Invalid time input "{value}". Supported formats are "HH:MM" or "HH:MM:SS" or "HHMM" or "HHMMSS".') from None
         setattr(args, self.dest, val.time())
-

@@ -61,19 +61,19 @@ def vector_test_helper(vec, zero):
     assert vec == cp
     for i in range(vec.ndim):
         assert neg[i] == pytest.approx(-vec[i])
-    
+
     # Absolute
     abs_vec = abs(vec)
     abs_neg = abs(neg)
     assert abs_vec == abs_neg
     for i in range(vec.ndim):
         assert abs_vec[i] >= 0
-   
+
     # Distance/Length & dot product:
     dot1 = vec.dot(vec)
     dot3 = vec.dot(vec3)
     assert 3 * dot1 == pytest.approx(dot3)
-    
+
     assert vec.unit_vector().length() == pytest.approx(1)
 
     length = vec.length()
@@ -147,7 +147,7 @@ def test_vectors():
     assert vec.min_value() == pytest.approx(-15.3)
     assert vec.min_index() == 2
     vector_test_helper(vec, zero3d)
-    
+
     vector_test_helper(pzgeo.Vec3d(1, 2, 3), zero3d)
     v3d = pzgeo.Vec3d(-171, 2, -3)
     assert v3d.max_value() == pytest.approx(2)
@@ -162,10 +162,10 @@ def test_vectors():
     assert u2d.length() == pytest.approx(1)
     assert u2d.x == pytest.approx(23 / 28.600699292)
     assert u2d.y == pytest.approx(-17 / 28.600699292)
-    
+
     assert v2d.direction_vector(zero2d) == -v2d
     assert v2d.direction_vector(v2d) == zero2d
-    
+
     orth = v2d.copy()
     orth[0] = v2d[1]
     orth[1] = -v2d[0]
@@ -204,7 +204,7 @@ def test_vectors():
     assert result[1] == pytest.approx(0)
     assert result[2] == pytest.approx(0)
 
-    
+
 def test_pickling():
     vecs = [pzgeo.Vec2d(99, -45),
             pzgeo.Vec2d(0.0001, 0.0789),
@@ -239,7 +239,7 @@ def test_vector_conversion():
         assert vec.x == pytest.approx(1.0)
         assert vec.y == pytest.approx(2.0)
         assert vec.dtype == np.float64
-        
+
         y = np.array([[3], [4]], dtype=tp)
         vec = pzgeo.Vec2d(y)
         assert vec.x == pytest.approx(3.0)
@@ -253,7 +253,7 @@ def test_vector_conversion():
         vec = pzgeo.Vec2i(y)
         assert vec.x == 3
         assert vec.y == 4
-    
+
     # Special type conversion (from bool array)
     vec = pzgeo.Vec2i(np.array([1, 2], dtype=bool))
     assert vec.x == 1
@@ -317,10 +317,10 @@ def test_vector_numpy():
         assert v[1] == float(npv[1])
 
         npv = np.array([[1, 2, -3], [4, -5, 6]]).astype(dt)
-        
+
         with pytest.raises(ValueError):
             v = pzgeo.Vec2d(npv[0, :])
-        
+
         v = pzgeo.Vec2d(npv[:, 0])
         assert v[0] == float(npv[0, 0])
         assert v[1] == float(npv[1, 0])
@@ -338,7 +338,7 @@ def test_vector_numpy_sliced():
     """Construct a vector from slices of a numpy array."""
     x = np.array(
         [[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.float64)
-    
+
     for idx in range(3):
         v = pzgeo.Vec3d(x[:, idx])
         data = x[:, idx]
@@ -353,4 +353,3 @@ def test_vector_numpy_sliced():
 #def test_vector_numpy_noncont():
 #    """Construct a vector from non-C-contiguous arrays."""
 #TODO
-
