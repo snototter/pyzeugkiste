@@ -6,8 +6,7 @@
 #include <pybind11/numpy.h>
 
 #include <werkzeugkiste/geometry/vector.h>
-//TODO move logging into werkzeugkiste!
-#include <werkzeugkiste-bindings/logging.h>
+#include <werkzeugkiste/logging.h>
 
 namespace werkzeugkiste::bindings {
 

@@ -39,7 +39,6 @@ set(pyzeugkiste_BINDINGS_PRINT_NAME pyzeugkiste)
 
 # Header files
 set(pyzeugkiste_HEADER_FILES
-    include/werkzeugkiste-bindings/logging.h
     include/werkzeugkiste-bindings/vector_bindings.h
 )
 

@@ -1,0 +1,8 @@
+[run]
+omit =
+    tests/*
+    libs/*
+
+[report]
+show_missing = true
+

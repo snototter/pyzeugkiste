@@ -28,7 +28,7 @@ classifiers = [
 
 
 [project.optional-dependencies]
-test = ["pytest", "coverage"]
+test = ["pytest", "pytest-cov"]
 
 
 [tool.scikit-build]
@@ -40,3 +40,14 @@ test-command = "pytest {project}/tests"
 test-extras = ["test"]
 #test-skip = ["*universal2:arm64"]
 build-verbosity = 1
+
+[tool.coverage.paths]
+source = ["src"]
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 100
