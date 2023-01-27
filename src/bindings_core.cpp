@@ -1,7 +1,7 @@
 #include <pybind11/pybind11.h>
 
 #include <werkzeugkiste-bindings/vector_bindings.h>
-//#include <werkzeugkiste-bindings/line2d.h>
+#include <werkzeugkiste-bindings/line2d_bindings.h>
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -30,7 +30,7 @@ PYBIND11_MODULE(pyzeugkiste_PYMODULE_IDENTIFIER, m) {
   werkzeugkiste::bindings::RegisterVector<int32_t, 2>(geo);//, geo_module_name);
   werkzeugkiste::bindings::RegisterVector<int32_t, 3>(geo);//, geo_module_name);
 
-//  werkzeugkiste::bindings::RegisterLine2d(m);
+  werkzeugkiste::bindings::RegisterLine2d(m);
 
 #ifdef pyzeugkiste_VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(pyzeugkiste_VERSION_INFO);

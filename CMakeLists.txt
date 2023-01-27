@@ -40,6 +40,7 @@ set(pyzeugkiste_BINDINGS_PRINT_NAME pyzeugkiste)
 # Header files
 set(pyzeugkiste_HEADER_FILES
     include/werkzeugkiste-bindings/vector_bindings.h
+    include/werkzeugkiste-bindings/line2d_bindings.h
 )
 
 # Source files
