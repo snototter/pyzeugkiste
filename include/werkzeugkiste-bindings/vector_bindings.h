@@ -24,7 +24,7 @@ inline werkzeugkiste::geometry::Vec<Tp, Dim> VecFromTupleOrList(
     std::ostringstream s;
     s << "Cannot cast " << py_type << " with " << tpl.size() << " elements to `"
       << module_name << "." << VC::TypeName() << "`!";
-    WKZLOG_ERROR(s.str());
+    WZKLOG_ERROR(s.str());
     throw std::invalid_argument(s.str());
   }
 
@@ -101,7 +101,7 @@ inline werkzeugkiste::geometry::Vec<VTp, Dim> VecFromArrayT(
     std::ostringstream s;
     s << "Cannot cast array with " << arr.size() << " elements to `"
       << module_name << '.' << VC::TypeName() << "`!";
-    WKZLOG_ERROR(s.str());
+    WZKLOG_ERROR(s.str());
     throw std::invalid_argument(s.str());
   }
 
@@ -177,7 +177,7 @@ inline werkzeugkiste::geometry::Vec<Tp, Dim> VecFromArray(
     s += module_name;
     s += '.';
     s += VC::TypeName() + "`!";
-    WKZLOG_ERROR(s);
+    WZKLOG_ERROR(s);
     throw std::invalid_argument(s);
   }
 }
@@ -207,7 +207,7 @@ werkzeugkiste::geometry::Vec<Tp, Dim> VecFromPyObject(
   std::ostringstream s;
   s << "Cannot cast `" << type << "` to `" << module_name << '.'
     << VC::TypeName() << "`. Only tuple, list and numpy.ndarray is supported!";
-  WKZLOG_ERROR(s.str());
+  WZKLOG_ERROR(s.str());
   throw std::invalid_argument(s.str());
 }
 
