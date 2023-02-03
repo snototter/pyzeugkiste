@@ -42,6 +42,8 @@ test-extras = ["test"]
 #test-skip = ["*universal2:arm64"]
 build-verbosity = 1
 
+#todo see best practices to determine which extras have been configured: https://stackoverflow.com/a/52475030/400948
+
 [tool.coverage.paths]
 source = ["src"]
 
