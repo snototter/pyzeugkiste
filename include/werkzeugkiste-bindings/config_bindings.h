@@ -1,8 +1,8 @@
 #ifndef WERKZEUGKISTE_BINDINGS_CONFIG_H
 #define WERKZEUGKISTE_BINDINGS_CONFIG_H
 
-#include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
+#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <werkzeugkiste/config/configuration.h>
 #include <werkzeugkiste/logging.h>
@@ -17,13 +17,13 @@
 namespace wzkcfg = werkzeugkiste::config;
 
 // TODO nice-to-have: custom C++ exceptions in werkzeugkiste + mapping
-// to python exceptions, similar to https://pybind11.readthedocs.io/en/stable/advanced/exceptions.html
-
+// to python exceptions, similar to
+// https://pybind11.readthedocs.io/en/stable/advanced/exceptions.html
 
 namespace werkzeugkiste::bindings {
 
 class ConfigWrapper {
-public:
+ public:
   static ConfigWrapper LoadTOMLFile(std::string_view filename) {
     ConfigWrapper instance{};
     instance.cfg_ = wzkcfg::Configuration::LoadTOMLFile(filename);
@@ -41,13 +41,9 @@ public:
     cfg_ = wzkcfg::Configuration::LoadTOMLString("");
   }
 
-  std::string ToTOMLString() const {
-    return cfg_->ToTOML();
-  }
+  std::string ToTOMLString() const { return cfg_->ToTOML(); }
 
-  std::string ToJSONString() const {
-    return cfg_->ToJSON();
-  }
+  std::string ToJSONString() const { return cfg_->ToJSON(); }
 
   bool Equals(const ConfigWrapper &other) const {
     return cfg_->Equals(other.cfg_.get());
@@ -57,25 +53,24 @@ public:
     return cfg_->SetBoolean(key, value);
   }
 
-  bool GetBoolean(std::string_view key) const {
-    return cfg_->GetBoolean(key);
-  }
+  bool GetBoolean(std::string_view key) const { return cfg_->GetBoolean(key); }
 
   bool GetBooleanOrDefault(std::string_view key, bool default_value) const {
     return cfg_->GetBooleanOrDefault(key, default_value);
   }
 
-//  void SetInteger32(std::string_view key, int32_t value) {
-//    return cfg_->SetInteger32(key, value);
-//  }
+  //  void SetInteger32(std::string_view key, int32_t value) {
+  //    return cfg_->SetInteger32(key, value);
+  //  }
 
-//  int32_t GetInteger32(std::string_view key) const {
-//    return cfg_->GetInteger32(key);
-//  }
+  //  int32_t GetInteger32(std::string_view key) const {
+  //    return cfg_->GetInteger32(key);
+  //  }
 
-//  int32_t GetInteger32OrDefault(std::string_view key, int32_t default_value) const {
-//    return cfg_->GetInteger32OrDefault(key, default_value);
-//  }
+  //  int32_t GetInteger32OrDefault(std::string_view key, int32_t default_value)
+  //  const {
+  //    return cfg_->GetInteger32OrDefault(key, default_value);
+  //  }
 
   void SetInteger64(std::string_view key, int64_t value) {
     return cfg_->SetInteger64(key, value);
@@ -85,7 +80,8 @@ public:
     return cfg_->GetInteger64(key);
   }
 
-  int64_t GetInteger64OrDefault(std::string_view key, int64_t default_value) const {
+  int64_t GetInteger64OrDefault(std::string_view key,
+                                int64_t default_value) const {
     return cfg_->GetInteger64OrDefault(key, default_value);
   }
 
@@ -93,9 +89,7 @@ public:
     return cfg_->SetDouble(key, value);
   }
 
-  double GetDouble(std::string_view key) const {
-    return cfg_->GetDouble(key);
-  }
+  double GetDouble(std::string_view key) const { return cfg_->GetDouble(key); }
 
   double GetDoubleOrDefault(std::string_view key, double default_value) const {
     return cfg_->GetDoubleOrDefault(key, default_value);
@@ -109,24 +103,25 @@ public:
     return cfg_->GetString(key);
   }
 
-  std::string GetStringOrDefault(std::string_view key, std::string_view default_value) const {
+  std::string GetStringOrDefault(std::string_view key,
+                                 std::string_view default_value) const {
     return cfg_->GetStringOrDefault(key, default_value);
   }
-
 
   // Special functions
   std::vector<std::string> ParameterNames() const {
     return cfg_->ParameterNames();
   }
 
-  bool ReplacePlaceholders(const std::vector<std::pair<std::string_view, std::string_view>> &replacements) {
+  bool ReplacePlaceholders(
+      const std::vector<std::pair<std::string_view, std::string_view>>
+          &replacements) {
     return cfg_->ReplaceStringPlaceholders(replacements);
   }
 
-private:
+ private:
   std::unique_ptr<werkzeugkiste::config::Configuration> cfg_{};
 };
-
 
 inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
   //---------------------------------------------------------------------------
@@ -147,10 +142,8 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           the type is not supported); or if the parent path could not be
           created (*e.g.* if you requested to implicitly create an array).
       )doc";
-  cfg.def("set_bool", &ConfigWrapper::SetBoolean,
-          doc_string.c_str(),
-          pybind11::arg("key"),
-          pybind11::arg("value"));
+  cfg.def("set_bool", &ConfigWrapper::SetBoolean, doc_string.c_str(),
+          pybind11::arg("key"), pybind11::arg("value"));
 
   doc_string = R"doc(
       Returns the :class:`bool` parameter or raises an exception.
@@ -165,8 +158,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
       Raises:
         RuntimeError: If ``key`` does not exist.
       )doc";
-  cfg.def("get_bool", &ConfigWrapper::GetBoolean,
-          doc_string.c_str(),
+  cfg.def("get_bool", &ConfigWrapper::GetBoolean, doc_string.c_str(),
           pybind11::arg("key"));
 
   doc_string = R"doc(
@@ -182,8 +174,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           will be returned instead.
       )doc";
   cfg.def("get_bool_or", &ConfigWrapper::GetBooleanOrDefault,
-          doc_string.c_str(),
-          pybind11::arg("key"),
+          doc_string.c_str(), pybind11::arg("key"),
           pybind11::arg("default_value"));
 
   //---------------------------------------------------------------------------
@@ -208,10 +199,8 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           the type is not supported); or if the parent path could not be
           created (*e.g.* if you requested to implicitly create an array).
       )doc";
-  cfg.def("set_int", &ConfigWrapper::SetInteger64,
-          doc_string.c_str(),
-          pybind11::arg("key"),
-          pybind11::arg("value"));
+  cfg.def("set_int", &ConfigWrapper::SetInteger64, doc_string.c_str(),
+          pybind11::arg("key"), pybind11::arg("value"));
 
   doc_string = R"doc(
       Returns the :class:`int` parameter or raises an exception.
@@ -227,8 +216,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
       Raises:
         RuntimeError: If ``key`` does not exist.
       )doc";
-  cfg.def("get_int", &ConfigWrapper::GetInteger64,
-          doc_string.c_str(),
+  cfg.def("get_int", &ConfigWrapper::GetInteger64, doc_string.c_str(),
           pybind11::arg("key"));
 
   doc_string = R"doc(
@@ -248,10 +236,8 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           will be returned instead.
       )doc";
   cfg.def("get_int_or", &ConfigWrapper::GetInteger64OrDefault,
-          doc_string.c_str(),
-          pybind11::arg("key"),
+          doc_string.c_str(), pybind11::arg("key"),
           pybind11::arg("default_value"));
-
 
   //---------------------------------------------------------------------------
   // Getting/setting scalars: Double
@@ -271,10 +257,8 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           the type is not supported); or if the parent path could not be
           created (*e.g.* if you requested to implicitly create an array).
       )doc";
-  cfg.def("set_double", &ConfigWrapper::SetDouble,
-          doc_string.c_str(),
-          pybind11::arg("key"),
-          pybind11::arg("value"));
+  cfg.def("set_double", &ConfigWrapper::SetDouble, doc_string.c_str(),
+          pybind11::arg("key"), pybind11::arg("value"));
 
   doc_string = R"doc(
       Returns the :class:`float` parameter or raises an exception.
@@ -289,8 +273,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
       Raises:
         RuntimeError: If ``key`` does not exist.
       )doc";
-  cfg.def("get_double", &ConfigWrapper::GetDouble,
-          doc_string.c_str(),
+  cfg.def("get_double", &ConfigWrapper::GetDouble, doc_string.c_str(),
           pybind11::arg("key"));
 
   doc_string = R"doc(
@@ -306,7 +289,8 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           will be returned instead.
       )doc";
   cfg.def("get_double_or", &ConfigWrapper::GetDoubleOrDefault,
-          doc_string.c_str(), pybind11::arg("key"), pybind11::arg("default_value"));
+          doc_string.c_str(), pybind11::arg("key"),
+          pybind11::arg("default_value"));
 
   //---------------------------------------------------------------------------
   // Getting/setting scalars: String
@@ -326,10 +310,8 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           the type is not supported); or if the parent path could not be
           created (*e.g.* if you requested to implicitly create an array).
       )doc";
-  cfg.def("set_str", &ConfigWrapper::SetString,
-          doc_string.c_str(),
-          pybind11::arg("key"),
-          pybind11::arg("value"));
+  cfg.def("set_str", &ConfigWrapper::SetString, doc_string.c_str(),
+          pybind11::arg("key"), pybind11::arg("value"));
 
   doc_string = R"doc(
       Returns the :class:`str` parameter or raises an exception.
@@ -344,8 +326,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
       Raises:
         RuntimeError: If ``key`` does not exist.
       )doc";
-  cfg.def("get_str", &ConfigWrapper::GetString,
-          doc_string.c_str(),
+  cfg.def("get_str", &ConfigWrapper::GetString, doc_string.c_str(),
           pybind11::arg("key"));
 
   doc_string = R"doc(
@@ -360,23 +341,22 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         default_value: If the parameter does not exist, this value
           will be returned instead.
       )doc";
-  cfg.def("get_str_or", &ConfigWrapper::GetStringOrDefault,
-          doc_string.c_str(),
-          pybind11::arg("key"),
-          pybind11::arg("default_value"));
+  cfg.def("get_str_or", &ConfigWrapper::GetStringOrDefault, doc_string.c_str(),
+          pybind11::arg("key"), pybind11::arg("default_value"));
 }
 
-inline void RegisterConfiguration(pybind11::module &m, std::string_view module_name) {
-//  const std::string module_name = m.attr("__name__").cast<std::string>();
+inline void RegisterConfiguration(pybind11::module &m) {
+  const std::string module_name = m.attr("__name__").cast<std::string>();
   const std::string config_name = std::string{module_name} + ".Configuration";
 
   std::string doc_string{};
   std::ostringstream doc_stream;
-  doc_stream << "TODO A :class:`~" << config_name  << "`.\n\n"
+  doc_stream
+      << "TODO A :class:`~" << config_name << "`.\n\n"
       << "**Corresponding C++ API:** ``werkzeugkiste::config::Configuration``.";
 
-  pybind11::class_<ConfigWrapper> cfg(
-      m, "Configuration", doc_stream.str().c_str());
+  pybind11::class_<ConfigWrapper> cfg(m, "Configuration",
+                                      doc_stream.str().c_str());
 
   cfg.def(pybind11::init<>(), "Creates an empty configuration.");
 
@@ -404,7 +384,6 @@ inline void RegisterConfiguration(pybind11::module &m, std::string_view module_n
   cfg.def("to_json_str", &ConfigWrapper::ToJSONString,
           "Returns a formatted `JSON <https://www.json.org/>`__ representation "
           "of this configuration.");
-
 
   RegisterScalarAccess(cfg);
 
@@ -506,11 +485,11 @@ inline void RegisterConfiguration(pybind11::module &m, std::string_view module_n
   cfg.def("replace_placeholders", &ConfigWrapper::ReplacePlaceholders,
           doc_string.c_str(), pybind11::arg("placeholders"));
 
-
   // Equality checks
   cfg.def(
-      "__eq__", [](const ConfigWrapper &a, const ConfigWrapper &b) -> bool {
-          return a.Equals(b);
+      "__eq__",
+      [](const ConfigWrapper &a, const ConfigWrapper &b) -> bool {
+        return a.Equals(b);
       },
       "Checks for equality.\n\nReturns ``True`` if both configs contain the "
       "exact same configuration, *i.e.* keys, corresponding data types and\n"
@@ -519,16 +498,16 @@ inline void RegisterConfiguration(pybind11::module &m, std::string_view module_n
 
   std::ostringstream().swap(doc_stream);
   doc_stream << "Checks for inequality, see :meth:`~." << config_name
-      << ".__eq__` for details.";
+             << ".__eq__` for details.";
   cfg.def(
-      "__ne__", [](const ConfigWrapper &a, const ConfigWrapper &b) -> bool {
-          return !a.Equals(b);
+      "__ne__",
+      [](const ConfigWrapper &a, const ConfigWrapper &b) -> bool {
+        return !a.Equals(b);
       },
       doc_stream.str().c_str(), pybind11::arg("other"));
 
-  //TODO __str__ and __repr__, e.g. (x 1st level keys, y parameters in total)
+  // TODO __str__ and __repr__, e.g. (x 1st level keys, y parameters in total)
 }
 }  // namespace werkzeugkiste::bindings
 
-#endif // WERKZEUGKISTE_BINDINGS_CONFIG_H
-
+#endif  // WERKZEUGKISTE_BINDINGS_CONFIG_H
