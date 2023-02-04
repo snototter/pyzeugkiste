@@ -197,9 +197,26 @@ inline void RegisterConfiguration(pybind11::module &m) {
   cfg.def("list_parameters", &ConfigWrapper::ParameterNames,
           "Returns a list of all parameter names (*i.e.*, their fully-qualified keys).");
 
+  std::string doc_str = R"doc(
+    Visits all string parameters and replaces *all* occurrences of the
+    given needle/replacement pairs.
+
+    Note that the string replacements will be applied in the order specified
+    by the `replacements` parameter. To avoid any unwanted side effects,
+    choose unique placeholders that are not contained in any other string
+    parameter value (or a replacement value).
+
+    Args:
+      replacements: A :class:`list` of `(search_str, replacement_str)` pairs.
+
+    Return:
+      `True` if any placeholder has actually been replaced.
+
+    Example:
+      >>> TODO
+    )doc";
   cfg.def("replace_placeholders", &ConfigWrapper::ReplacePlaceholders,
-          "TODO doc + example [('search', 'replace'), ('e', '')]"
-"TODO watch out for side effects (replacements will be applied in order)", pybind11::arg("placeholders"));
+          doc_str, pybind11::arg("placeholders"));
 
 
   // Equality checks
