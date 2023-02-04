@@ -1,6 +1,6 @@
 from typing import Union
 from pathlib import Path
-#from pyzeugkiste._core import _files
+#from pyzk._core import _files
 #__doc__ = _files.__doc__
 
 #TODO doc

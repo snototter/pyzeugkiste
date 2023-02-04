@@ -1,7 +1,7 @@
 import argparse
 import datetime
 import pytest
-from pyzeugkiste import args as pzargs
+from pyzk import args as pzargs
 
 
 def test_date_parsing():

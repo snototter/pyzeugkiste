@@ -1,3 +1,6 @@
+#ifndef WERKZEUGKISTE_BINDINGS_GEOMETRY_LINE2D_H
+#define WERKZEUGKISTE_BINDINGS_GEOMETRY_LINE2D_H
+
 #include <pybind11/numpy.h>
 #include <pybind11/operators.h>
 #include <werkzeugkiste/geometry/primitives.h>
@@ -382,3 +385,5 @@ const;
   */
 
 }  // namespace werkzeugkiste::bindings
+
+#endif // WERKZEUGKISTE_BINDINGS_GEOMETRY_LINE2D_H
