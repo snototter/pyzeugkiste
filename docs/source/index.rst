@@ -12,9 +12,12 @@ PyZeugKiste - Another Box of Python Tools
    :target: https://github.com/snototter/pyzeugkiste/blob/master/LICENSE?raw=true
    :alt: License
 
+|
+
 .. toctree::
    :caption: Contents
    :maxdepth: 2
 
-   Requirements & Getting Started <installation>
-   Submodule `config` <apidoc-config>
+   Package installation <installation>
+   Submodule config <apidoc-config>
+   Submodule geo <apidoc-geo>
