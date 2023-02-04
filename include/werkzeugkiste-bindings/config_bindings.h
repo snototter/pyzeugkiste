@@ -48,11 +48,11 @@ public:
     return cfg_->SetBoolean(key, value);
   }
 
-  bool GetBoolean(std::string_view key) const {//FIXME const
+  bool GetBoolean(std::string_view key) const {
     return cfg_->GetBoolean(key);
   }
 
-  bool GetBooleanOrDefault(std::string_view key, bool default_value) {
+  bool GetBooleanOrDefault(std::string_view key, bool default_value) const {
     return cfg_->GetBooleanOrDefault(key, default_value);
   }
 
@@ -60,11 +60,11 @@ public:
     return cfg_->SetInteger32(key, value);
   }
 
-  int32_t GetInteger32(std::string_view key) {
+  int32_t GetInteger32(std::string_view key) const {
     return cfg_->GetInteger32(key);
   }
 
-  int32_t GetInteger32OrDefault(std::string_view key, int32_t default_value) {
+  int32_t GetInteger32OrDefault(std::string_view key, int32_t default_value) const {
     return cfg_->GetInteger32OrDefault(key, default_value);
   }
 
@@ -72,11 +72,11 @@ public:
     return cfg_->SetInteger64(key, value);
   }
 
-  int64_t GetInteger64(std::string_view key) {
+  int64_t GetInteger64(std::string_view key) const {
     return cfg_->GetInteger64(key);
   }
 
-  int64_t GetInteger64OrDefault(std::string_view key, int64_t default_value) {
+  int64_t GetInteger64OrDefault(std::string_view key, int64_t default_value) const {
     return cfg_->GetInteger64OrDefault(key, default_value);
   }
 
@@ -84,11 +84,11 @@ public:
     return cfg_->SetDouble(key, value);
   }
 
-  double GetDouble(std::string_view key) {
+  double GetDouble(std::string_view key) const {
     return cfg_->GetDouble(key);
   }
 
-  double GetDoubleOrDefault(std::string_view key, double default_value) {
+  double GetDoubleOrDefault(std::string_view key, double default_value) const {
     return cfg_->GetDoubleOrDefault(key, default_value);
   }
 
@@ -96,16 +96,20 @@ public:
     return cfg_->SetString(key, value);
   }
 
-  std::string GetString(std::string_view key) {
+  std::string GetString(std::string_view key) const {
     return cfg_->GetString(key);
   }
 
-  std::string GetStringOrDefault(std::string_view key, std::string_view default_value) {
+  std::string GetStringOrDefault(std::string_view key, std::string_view default_value) const {
     return cfg_->GetStringOrDefault(key, default_value);
   }
 
 
   // Special functions
+  std::vector<std::string> ParameterNames() const {
+    return cfg_->ParameterNames();
+  }
+
   bool ReplacePlaceholders(const std::vector<std::pair<std::string_view, std::string_view>> &replacements) {
     return cfg_->ReplaceStringPlaceholders(replacements);
   }
@@ -175,20 +179,24 @@ inline void RegisterConfiguration(pybind11::module &m) {
   cfg.def("get_double", &ConfigWrapper::GetDouble,
           "TODO double-precision", pybind11::arg("key"));
   cfg.def("get_double_or", &ConfigWrapper::GetDoubleOrDefault,
-          "TODO double-precision", pybind11::arg("key"), pybind11::arg("default_value"));
+          "Returns the :class:`float` parameter if the given key exists, or the default value otherwise.", pybind11::arg("key"), pybind11::arg("default_value"));
 
   cfg.def("set_str", &ConfigWrapper::SetString,
           "TODO", pybind11::arg("key"), pybind11::arg("value"));
   cfg.def("get_str", &ConfigWrapper::GetString,
           "TODO", pybind11::arg("key"));
   cfg.def("get_str_or", &ConfigWrapper::GetStringOrDefault,
-          "TODO", pybind11::arg("key"), pybind11::arg("default_value"));
+          "Returns the :class:`str` parameter if the given key exists, or the default value otherwise.",
+          pybind11::arg("key"), pybind11::arg("default_value"));
 
   // Getting/Setting lists/tuples/pairs
   // TODO
 
   // Special utils
   // TODO load nested, replace placeholders, adjust paths
+  cfg.def("list_parameters", &ConfigWrapper::ParameterNames,
+          "Returns a list of all parameter names (*i.e.*, their fully-qualified keys).");
+
   cfg.def("replace_placeholders", &ConfigWrapper::ReplacePlaceholders,
           "TODO doc + example [('search', 'replace'), ('e', '')]"
 "TODO watch out for side effects (replacements will be applied in order)", pybind11::arg("placeholders"));

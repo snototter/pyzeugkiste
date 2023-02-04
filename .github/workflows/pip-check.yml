@@ -1,4 +1,4 @@
-name: "Check pip installation"
+name: "pip-installable"
 
 on:
   workflow_dispatch:
