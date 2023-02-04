@@ -14,6 +14,7 @@ import pyzeugkiste
 version = pyzeugkiste.__version__
 release = version
 
+
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
@@ -30,6 +31,10 @@ extensions = [
 # -- Options for the extension modules ---------------------------------------
 
 autosummary_generate = True
+
+# If true, the current module name will be prepended to all description
+# unit titles (such as .. function::).
+add_module_names = False
 
 intersphinx_mapping = {
   'python': ('https://docs.python.org/', None),

@@ -644,8 +644,13 @@ inline void RegisterVectorDivision(pybind11::class_<V> &vec,
   // Overloading `__idiv__` is not needed
 }
 
+/// TODO doc
+/// module_name can be set, as it will be used to denote the type
+/// in docstrings and info/warning/error messages. Libary users will
+/// usually only care about the publicly exposed python names, not
+/// the internal bindings names.
 template <typename Tp, std::size_t Dim>
-void RegisterVector(pybind11::module &m) {
+void RegisterVector(pybind11::module &m, std::string_view module_name) {
   static_assert(
       std::is_same_v<int32_t, Tp> || std::is_same_v<double, Tp>,
       "Vector bindings are only allowed for double precision floating point "
@@ -655,7 +660,7 @@ void RegisterVector(pybind11::module &m) {
   using VC = werkzeugkiste::geometry::Vec<Tp, Dim>;
   using VC_int32 = werkzeugkiste::geometry::Vec<int32_t, Dim>;
   using VC_double = werkzeugkiste::geometry::Vec<double, Dim>;
-  const std::string module_name = m.attr("__name__").cast<std::string>();
+//  const std::string module_name = m.attr("__name__").cast<std::string>();
 
   std::ostringstream doc;
   doc << "A " << Dim << "D vector of " << PythonVecTypeName<Tp>(true)
