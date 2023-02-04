@@ -1,7 +1,7 @@
 #include <pybind11/pybind11.h>
+#include <werkzeugkiste-bindings/config_bindings.h>
 #include <werkzeugkiste-bindings/line2d_bindings.h>
 #include <werkzeugkiste-bindings/vector_bindings.h>
-#include <werkzeugkiste-bindings/config_bindings.h>
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -14,9 +14,9 @@ void RegisterGeometryUtils(pybind11::module &m) {
     TODO summary
     )doc";
 
-  const std::string print_name =
-      std::string{MACRO_STRINGIFY(pyzeugkiste_PYMODULE_PRINT_NAME)}
-      + ".geo";
+  // const std::string print_name =
+  //     std::string{MACRO_STRINGIFY(pyzeugkiste_PYMODULE_PRINT_NAME)}
+  //     + ".geo";
 
   //-------------------------------------------------
   // Primitives
@@ -27,14 +27,10 @@ void RegisterGeometryUtils(pybind11::module &m) {
   //  MACRO_STRINGIFY(pyzeugkiste_PYMODULE_PRINT_NAME) }; TODO remove compile
   //  definition const std::string geo_module_name{ main_module_name +
   //  ".geometry" };
-  werkzeugkiste::bindings::RegisterVector<double, 2>(
-      geo, print_name);
-  werkzeugkiste::bindings::RegisterVector<double, 3>(
-      geo, print_name);
-  werkzeugkiste::bindings::RegisterVector<int32_t, 2>(
-      geo, print_name);
-  werkzeugkiste::bindings::RegisterVector<int32_t, 3>(
-      geo, print_name);
+  werkzeugkiste::bindings::RegisterVector<double, 2>(geo);
+  werkzeugkiste::bindings::RegisterVector<double, 3>(geo);
+  werkzeugkiste::bindings::RegisterVector<int32_t, 2>(geo);
+  werkzeugkiste::bindings::RegisterVector<int32_t, 3>(geo);
 
   werkzeugkiste::bindings::RegisterLine2d(geo);
 }
@@ -47,10 +43,10 @@ void RegisterConfigUtils(pybind11::module &m) {
     TODO summary
     )doc";
 
-  const std::string print_name =
-      std::string{MACRO_STRINGIFY(pyzeugkiste_PYMODULE_PRINT_NAME)}
-      + ".config";
-  werkzeugkiste::bindings::RegisterConfiguration(cfg, print_name);
+  // const std::string print_name =
+  //     std::string{MACRO_STRINGIFY(pyzeugkiste_PYMODULE_PRINT_NAME)}
+  //     + ".config";
+  werkzeugkiste::bindings::RegisterConfiguration(cfg);
 }
 
 ///----------------------------------------------------------------------------
