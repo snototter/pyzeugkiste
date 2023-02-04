@@ -74,21 +74,6 @@ message(STATUS "werkzeugkiste v${werkzeugkiste_VERSION}")
 # We link the werkzeugkiste components statically, but need to ensure that they
 # are build with position independent code. Otherwise, the python binding,
 # which is a shared library, can't be linked.
-
-#set_target_properties(tomlplusplus_tomlplusplus PROPERTIES POSITION_INDEPENDENT_CODE ON) #TODO does this solve the linker issue?
-#set_target_properties(werkzeugkiste-config
-#                      PROPERTIES POSITION_INDEPENDENT_CODE ON)
-#set_target_properties(werkzeugkiste-files
-#                      PROPERTIES POSITION_INDEPENDENT_CODE ON)
-#set_target_properties(werkzeugkiste-geometry
-#                      PROPERTIES POSITION_INDEPENDENT_CODE ON)
-#set_target_properties(werkzeugkiste-logging
-#                      PROPERTIES POSITION_INDEPENDENT_CODE ON)
-#set_target_properties(werkzeugkiste-strings
-#                      PROPERTIES POSITION_INDEPENDENT_CODE ON)
-#set_target_properties(werkzeugkiste-timing
-#                      PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
 target_link_libraries(${pyzeugkiste_BINDINGS_TARGET}
                       PUBLIC
                       werkzeugkiste::geometry)
@@ -96,7 +81,7 @@ target_link_libraries(${pyzeugkiste_BINDINGS_TARGET}
                       PRIVATE
                       werkzeugkiste::config
                       werkzeugkiste::logging
-                      werkzeugkiste::strings
+#                      werkzeugkiste::strings
 )
 
 target_compile_definitions(
@@ -111,7 +96,8 @@ if(pyzeugkiste_VERSION)
 endif()
 
 set_target_properties(${pyzeugkiste_BINDINGS_TARGET}
-                      PROPERTIES POSITION_INDEPENDENT_CODE ON)
+                      PROPERTIES POSITION_INDEPENDENT_CODE ON
+                      CXX_STANDARD_REQUIRED ON)
 
 # target_include_directories(${viren2d_TARGET_PYTHON_LIB} PRIVATE
 # "${CMAKE_CURRENT_SOURCE_DIR}/src")
