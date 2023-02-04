@@ -23,7 +23,7 @@ endif()
 project(
   pyzeugkiste
   VERSION ${pyzeugkiste_VERSION}
-  DESCRIPTION "Python bindings for werkzeugkiste and additional helpers."
+  DESCRIPTION "PyZeugKiste: Python bindings for werkzeugkiste and additional python-only helpers."
   HOMEPAGE_URL "https://github.com/snototter/pyzeugkiste"
   LANGUAGES CXX)
 
@@ -32,16 +32,17 @@ set(pyzeugkiste_BINDINGS_PRINT_NAME pyzeugkiste)
 
 # Header files
 set(pyzeugkiste_HEADER_FILES include/werkzeugkiste-bindings/vector_bindings.h
-                             include/werkzeugkiste-bindings/line2d_bindings.h)
+                             include/werkzeugkiste-bindings/line2d_bindings.h
+                             include/werkzeugkiste-bindings/config_bindings.h)
 
 # Source files
-set(pyzeugkiste_SOURCE_FILES src/bindings_core.cpp)
+set(pyzeugkiste_SOURCE_FILES src/pyzeugkiste_core.cpp)
 
 # pybind11 provides add_module which is basically a wrapper of CMake's
 # add_library
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/libs/pybind11)
 
-pybind11_add_module(${pyzeugkiste_BINDINGS_TARGET} ${pyzeugkiste_HEADER_FILES}
+pybind11_add_module(${pyzeugkiste_BINDINGS_TARGET} MODULE ${pyzeugkiste_HEADER_FILES}
                     ${pyzeugkiste_SOURCE_FILES})
 
 set_target_properties(
@@ -70,13 +71,18 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(werkzeugkiste)
 message(STATUS "werkzeugkiste v${werkzeugkiste_VERSION}")
 
-# We link them statically, but need to ensure that the components are build with
-# position independent code.
-set_target_properties(werkzeugkiste-geometry
-                      PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
+# We link the werkzeugkiste components statically, but need to ensure that they
+# are build with position independent code. Otherwise, the python binding,
+# which is a shared library, can't be linked.
 target_link_libraries(${pyzeugkiste_BINDINGS_TARGET}
-                      PUBLIC werkzeugkiste::geometry)
+                      PUBLIC
+                      werkzeugkiste::geometry)
+target_link_libraries(${pyzeugkiste_BINDINGS_TARGET}
+                      PRIVATE
+                      werkzeugkiste::config
+                      werkzeugkiste::logging
+#                      werkzeugkiste::strings
+)
 
 target_compile_definitions(
   ${pyzeugkiste_BINDINGS_TARGET}
@@ -90,7 +96,8 @@ if(pyzeugkiste_VERSION)
 endif()
 
 set_target_properties(${pyzeugkiste_BINDINGS_TARGET}
-                      PROPERTIES POSITION_INDEPENDENT_CODE ON)
+                      PROPERTIES POSITION_INDEPENDENT_CODE ON
+                      CXX_STANDARD_REQUIRED ON)
 
 # target_include_directories(${viren2d_TARGET_PYTHON_LIB} PRIVATE
 # "${CMAKE_CURRENT_SOURCE_DIR}/src")

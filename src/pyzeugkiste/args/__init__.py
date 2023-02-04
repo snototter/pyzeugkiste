@@ -1,4 +1,4 @@
-"""Custom validators for `argparse`."""
+"""Collection of custom validators for `argparse`."""
 import argparse
 import datetime
 

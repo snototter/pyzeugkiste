@@ -1,20 +1,17 @@
 #include <pybind11/pybind11.h>
 #include <werkzeugkiste-bindings/line2d_bindings.h>
 #include <werkzeugkiste-bindings/vector_bindings.h>
+#include <werkzeugkiste-bindings/config_bindings.h>
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
 
-///----------------------------------------------------------------------------
-/// Module definition
-PYBIND11_MODULE(pyzeugkiste_PYMODULE_IDENTIFIER, m) {
-  m.doc() = R"doc(
-    TODO doc
-    )doc";
-
+void RegisterGeometryUtils(pybind11::module &m) {
   pybind11::module geo = m.def_submodule("_geo");
   geo.doc() = R"doc(
     Math utils for 2D/3D geometry.
+
+    TODO summary
     )doc";
 
   //-------------------------------------------------
@@ -35,7 +32,35 @@ PYBIND11_MODULE(pyzeugkiste_PYMODULE_IDENTIFIER, m) {
   werkzeugkiste::bindings::RegisterVector<int32_t, 3>(
       geo);  //, geo_module_name);
 
-  werkzeugkiste::bindings::RegisterLine2d(m);
+  werkzeugkiste::bindings::RegisterLine2d(geo);
+}
+
+void RegisterConfigUtils(pybind11::module &m) {
+  pybind11::module cfg = m.def_submodule("_cfg");
+  cfg.doc() = R"doc(
+    Configuration file utils.
+
+    TODO summary
+    )doc";
+
+  werkzeugkiste::bindings::RegisterConfiguration(cfg);
+}
+
+///----------------------------------------------------------------------------
+/// Module definition
+PYBIND11_MODULE(pyzeugkiste_PYMODULE_IDENTIFIER, m) {
+  m.doc() = R"doc(
+    PyZeugKiste: A Python utility collection
+
+    Submodules:
+       * `args`
+       * `config`
+       * `files`
+       * `geo`
+    )doc";
+
+  RegisterGeometryUtils(m);
+  RegisterConfigUtils(m);
 
 #ifdef pyzeugkiste_VERSION_INFO
   m.attr("__version__") = MACRO_STRINGIFY(pyzeugkiste_VERSION_INFO);

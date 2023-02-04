@@ -6,7 +6,7 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "pyzeugkiste"
 version = "0.2.0"
-description="Python bindings for werkzeugkiste + additional helpers."
+description="PyZeugKiste: Python bindings for werkzeugkiste & additional python-only helpers."
 readme = "README.md"
 authors = [
   { name = "snototter", email = "snototter@users.noreply.github.com" },
@@ -33,7 +33,25 @@ dev = ["pre-commit"]
 
 
 [tool.scikit-build]
+# See param description at https://pypi.org/project/scikit-build-core/
+cmake.minimum-version = "3.15"
+ninja.minimum-version = "1.5"
+ninja.make-fallback = true
+
+cmake.args = []
+cmake.verbose = true
+cmake.build-type = "Release"
+logging.level = "WARNING"
+
+sdist.include = []
+sdist.exclude = []
+
+wheel.packages = ["src/pyzeugkiste"]
+
+# Setting this to true will expand tags (universal2 will add Intel and Apple
+# Silicon tags, for pip <21.0.1 compatibility).
 wheel.expand-macos-universal-tags = true
+
 
 
 [tool.cibuildwheel]

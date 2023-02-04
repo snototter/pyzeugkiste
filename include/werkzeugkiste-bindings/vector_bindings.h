@@ -1,3 +1,6 @@
+#ifndef WERKZEUGKISTE_BINDINGS_GEOMETRY_VECTOR_H
+#define WERKZEUGKISTE_BINDINGS_GEOMETRY_VECTOR_H
+
 #include <pybind11/numpy.h>
 #include <pybind11/operators.h>
 #include <werkzeugkiste/geometry/vector.h>
@@ -1026,3 +1029,5 @@ void RegisterVector(pybind11::module &m) {
 }
 
 }  // namespace werkzeugkiste::bindings
+
+#endif // WERKZEUGKISTE_BINDINGS_GEOMETRY_VECTOR_H
