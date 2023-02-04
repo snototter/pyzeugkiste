@@ -28,7 +28,7 @@ project(
   LANGUAGES CXX)
 
 set(pyzeugkiste_BINDINGS_TARGET _core)
-set(pyzeugkiste_BINDINGS_PRINT_NAME pyzk)
+set(pyzeugkiste_BINDINGS_PRINT_NAME pyzeugkiste)
 
 # Header files
 set(pyzeugkiste_HEADER_FILES include/werkzeugkiste-bindings/vector_bindings.h
@@ -36,7 +36,7 @@ set(pyzeugkiste_HEADER_FILES include/werkzeugkiste-bindings/vector_bindings.h
                              include/werkzeugkiste-bindings/config_bindings.h)
 
 # Source files
-set(pyzeugkiste_SOURCE_FILES src/pyzk_core.cpp)
+set(pyzeugkiste_SOURCE_FILES src/pyzeugkiste_core.cpp)
 
 # pybind11 provides add_module which is basically a wrapper of CMake's
 # add_library
@@ -110,6 +110,6 @@ set_target_properties(${pyzeugkiste_BINDINGS_TARGET}
 
 # TODO add custom test/coverage/lint target?
 
-install(TARGETS ${pyzeugkiste_BINDINGS_TARGET} DESTINATION pyzk)
+install(TARGETS ${pyzeugkiste_BINDINGS_TARGET} DESTINATION pyzeugkiste)
 
 message(STATUS "Configured pyzeugkiste v${pyzeugkiste_VERSION}")

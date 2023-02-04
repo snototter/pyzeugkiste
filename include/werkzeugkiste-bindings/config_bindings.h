@@ -120,31 +120,33 @@ private:
 
 inline void RegisterConfiguration(pybind11::module &m) {
   const std::string module_name = m.attr("__name__").cast<std::string>();
+  const std::string config_name = module_name + ".Configuration";
 
-  std::ostringstream doc;
-  doc << "TODO A :class:`~"
-      << module_name << ".Configuration`.\n\n"
-      << "**Corresponding C++ API:** ``" << module_name << "::Configuration``.";
-  pybind11::class_<ConfigWrapper> cfg(m, "Configuration", doc.str().c_str());
+  std::string doc_string{};
+  std::ostringstream doc_stream;
+  doc_stream << "TODO A :class:`~" << config_name  << "`.\n\n"
+      << "**Corresponding C++ API:** ``"
+      << module_name << "::Configuration``.";
+  pybind11::class_<ConfigWrapper> cfg(m, "Configuration", doc_stream.str().c_str());
 
   // Loading a configuration
-  std::ostringstream().swap(doc);
-  doc << "Returns a :class:`~" << module_name
+  std::ostringstream().swap(doc_stream);
+  doc_stream << "Returns a :class:`~" << module_name
       << ".Configuration loaded from the given TOML file.";
   cfg.def_static("load_toml_file", &ConfigWrapper::LoadTOMLFile,
-                 doc.str().c_str(), pybind11::arg("filename"));
+                 doc_stream.str().c_str(), pybind11::arg("filename"));
 
-  std::ostringstream().swap(doc);
-  doc << "Returns a :class:`~" << module_name
+  std::ostringstream().swap(doc_stream);
+  doc_stream << "Returns a :class:`~" << module_name
       << ".Configuration loaded from the given TOML string.";
   cfg.def_static("load_toml_string", &ConfigWrapper::LoadTOMLString,
-                 doc.str().c_str(), pybind11::arg("toml_str"));
+                 doc_stream.str().c_str(), pybind11::arg("toml_str"));
 
   // Serializing
-  cfg.def("to_toml", &ConfigWrapper::ToTOMLString,
+  cfg.def("to_toml_str", &ConfigWrapper::ToTOMLString,
           "Returns a formatted TOML representation of this configuration.");
 
-  cfg.def("to_json", &ConfigWrapper::ToJSONString,
+  cfg.def("to_json_str", &ConfigWrapper::ToJSONString,
           "Returns a formatted JSON representation of this configuration.");
 
 
@@ -197,7 +199,7 @@ inline void RegisterConfiguration(pybind11::module &m) {
   cfg.def("list_parameters", &ConfigWrapper::ParameterNames,
           "Returns a list of all parameter names (*i.e.*, their fully-qualified keys).");
 
-  std::string doc_str = R"doc(
+  doc_string = R"doc(
     Visits all string parameters and replaces *all* occurrences of the
     given needle/replacement pairs.
 
@@ -216,7 +218,7 @@ inline void RegisterConfiguration(pybind11::module &m) {
       >>> TODO
     )doc";
   cfg.def("replace_placeholders", &ConfigWrapper::ReplacePlaceholders,
-          doc_str, pybind11::arg("placeholders"));
+          doc_string.c_str(), pybind11::arg("placeholders"));
 
 
   // Equality checks
@@ -227,14 +229,14 @@ inline void RegisterConfiguration(pybind11::module &m) {
       "Returns `True` if both configs contain the exact same parameters (keys, types and values).",
       pybind11::arg("other"));
 
-  std::ostringstream().swap(doc);
-  doc << "Checks for inequality, see :meth:`~." << module_name
+  std::ostringstream().swap(doc_stream);
+  doc_stream << "Checks for inequality, see :meth:`~." << module_name
       << ".Configuration.__eq__` for details.";
   cfg.def(
       "__ne__", [](const ConfigWrapper &a, const ConfigWrapper &b) -> bool {
           return !a.Equals(b);
       },
-      doc.str().c_str(), pybind11::arg("other"));
+      doc_stream.str().c_str(), pybind11::arg("other"));
 
   //TODO __str__ and __repr__, e.g. (x 1st level keys, y parameters in total)
 }
