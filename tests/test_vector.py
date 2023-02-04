@@ -1,6 +1,6 @@
 import pytest
-import pyzk
-from pyzk import geo as pzgeo
+import pyzeugkiste
+from pyzeugkiste import geo as pzgeo
 import math
 import pickle
 import numpy as np

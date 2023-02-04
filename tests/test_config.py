@@ -1,5 +1,5 @@
 import pytest
-from pyzk import config
+from pyzeugkiste import config
 
 def test_scalars():
     cfg = config.Configuration.load_toml_string("""
@@ -57,11 +57,11 @@ def test_representations():
         str = "value"
         bool = false
         """)
-    other = config.Configuration.load_toml_string(cfg.to_toml())
+    other = config.Configuration.load_toml_string(cfg.to_toml_str())
     assert cfg == other
 
     with pytest.raises(RuntimeError):
-        config.Configuration.load_toml_string(cfg.to_json())
+        config.Configuration.load_toml_string(cfg.to_json_str())
 
 
 def test_placeholders():

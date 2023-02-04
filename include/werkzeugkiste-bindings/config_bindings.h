@@ -125,23 +125,27 @@ inline void RegisterConfiguration(pybind11::module &m) {
   std::string doc_string{};
   std::ostringstream doc_stream;
   doc_stream << "TODO A :class:`~" << config_name  << "`.\n\n"
-      << "**Corresponding C++ API:** ``"
-      << module_name << "::Configuration``.";
-  pybind11::class_<ConfigWrapper> cfg(m, "Configuration", doc_stream.str().c_str());
+      << "**Corresponding C++ API:** ``werkzeugkiste::config::Configuration``.";
 
+  pybind11::class_<ConfigWrapper> cfg(
+      m, "Configuration", doc_stream.str().c_str());
+
+  //---------------------------------------------------------------------------
   // Loading a configuration
   std::ostringstream().swap(doc_stream);
-  doc_stream << "Returns a :class:`~" << module_name
-      << ".Configuration loaded from the given TOML file.";
+  doc_stream << "Returns a :class:`~" << config_name
+             << "` loaded from the given TOML file.";
+
   cfg.def_static("load_toml_file", &ConfigWrapper::LoadTOMLFile,
                  doc_stream.str().c_str(), pybind11::arg("filename"));
 
   std::ostringstream().swap(doc_stream);
-  doc_stream << "Returns a :class:`~" << module_name
-      << ".Configuration loaded from the given TOML string.";
+  doc_stream << "Returns a :class:`~" << config_name
+             << "` loaded from the given TOML string.";
   cfg.def_static("load_toml_string", &ConfigWrapper::LoadTOMLString,
                  doc_stream.str().c_str(), pybind11::arg("toml_str"));
 
+  //---------------------------------------------------------------------------
   // Serializing
   cfg.def("to_toml_str", &ConfigWrapper::ToTOMLString,
           "Returns a formatted TOML representation of this configuration.");
@@ -150,14 +154,36 @@ inline void RegisterConfiguration(pybind11::module &m) {
           "Returns a formatted JSON representation of this configuration.");
 
 
+  //---------------------------------------------------------------------------
   // Getting/setting scalars
   // TODO
+  doc_string = R"doc(
+      Returns an optional `bool` parameter.
+
+      Args:
+        key: The fully-qualified parameter name, *e.g.*
+          `"section1.subgroup.my-param"`.
+        default_value: If the parameter does not exist, this value
+          will be returned instead.
+      )doc";
   cfg.def("set_bool", &ConfigWrapper::SetBoolean,
           "TODO", pybind11::arg("key"), pybind11::arg("value"));
   cfg.def("get_bool", &ConfigWrapper::GetBoolean,
           "TODO", pybind11::arg("key"));
+
+  doc_string = R"doc(
+      Returns an optional `bool` parameter.
+
+      Args:
+        key: The fully-qualified parameter name, *e.g.*
+          `"section1.subgroup.my-param"`.
+        default_value: If the parameter does not exist, this value
+          will be returned instead.
+      )doc";
   cfg.def("get_bool_or", &ConfigWrapper::GetBooleanOrDefault,
-          "TODO", pybind11::arg("key"), pybind11::arg("default_value"));
+          doc_string.c_str(),
+          pybind11::arg("key"),
+          pybind11::arg("default_value"));
 
 
   cfg.def("set_int32", &ConfigWrapper::SetInteger32,
