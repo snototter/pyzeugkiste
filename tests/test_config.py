@@ -1,6 +1,8 @@
 import pytest
 from pyzeugkiste import config
 
+# TODO Tests missing, e.g. list_parameter_names, lead_nested_toml, ...
+
 def test_scalars():
     cfg = config.Configuration.load_toml_string("""
         int = 23
@@ -42,7 +44,7 @@ def test_scalars():
 
     with pytest.raises(RuntimeError):
         cfg.get_str('nested.scalars.str')
- 
+
     cfg.set_str('nested.scalars.str', 'frobmorten')
     assert cfg.get_str("nested.scalars.str") == 'frobmorten'
 
@@ -81,4 +83,3 @@ def test_placeholders():
     assert cfg.get_str('tbl.str1') == 'valu ...'
     assert cfg.get_str('tbl.str2') == '123'
     assert cfg.get_str('tbl.str3') == 'ky'
-

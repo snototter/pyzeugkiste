@@ -49,6 +49,12 @@ class ConfigWrapper {
     return cfg_->Equals(other.cfg_.get());
   }
 
+  pybind11::object GetGeneric(std::string_view key) {
+    // TODO query type, then call corresponding GetX()
+    // TODO how to handle inhomogeneous types, i.e. tables and mixed arrays?
+    //   --> initially, support only homogeneous arrays, else raise exception
+  }
+
   void SetBoolean(std::string_view key, bool value) {
     return cfg_->SetBoolean(key, value);
   }
@@ -109,8 +115,9 @@ class ConfigWrapper {
   }
 
   // Special functions
-  std::vector<std::string> ParameterNames() const {
-    return cfg_->ParameterNames();
+  std::vector<std::string> ListParameterNames(
+      bool include_array_entries) const {
+    return cfg_->ListParameterNames(include_array_entries);
   }
 
   bool ReplacePlaceholders(
@@ -400,10 +407,12 @@ inline void RegisterConfiguration(pybind11::module &m) {
 
       The key defines the "path" from the configuration's root node
       to the parameter.
-      The list contains only explicitly *named* parameters, *i.e.*
-      scalar array elements will not be included.
-      For example, consider the following configuration and its
-      corresponding parameter names:
+
+      Args:
+        include_array_entries: If ``True``, the name of each parameter will
+          be returned, *i.e.* the result will also include **each** array
+          element. Otherwise, only explicitly named parameters will be
+          included, refer to the example below.
 
       .. code-block:: toml
          :caption: Exemplary configuration
@@ -424,9 +433,9 @@ inline void RegisterConfiguration(pybind11::module &m) {
          ]
 
       .. code-block:: python
-         :caption: Corresponding parameter names
+         :caption: Extracted parameter names
 
-         named_parameters = [
+         named_parameters = [  # list_parameter_names(False)
            'str1',
            'values',
            'values.numeric',
@@ -441,9 +450,29 @@ inline void RegisterConfiguration(pybind11::module &m) {
            'values.other.time1'
          ]
 
+         named_parameters = [  # list_parameter_names(True)
+           'str1',
+           'values',
+           'values.numeric',
+           'values.numeric.arr1',
+           'values.numeric.arr1[0]',
+           'values.numeric.arr1[1]',
+           'values.numeric.arr1[2]',
+           'values.numeric.flt1',
+           'values.numeric.int1',
+           'values.other',
+           'values.other.arr2',
+           'values.other.arr2[0]',
+           'values.other.arr2[1]',
+           'values.other.arr2[1].flt2',
+           'values.other.arr2[1].int2',
+           'values.other.str2',
+           'values.other.time1'
+         ]
+
       )doc";
-  cfg.def("list_parameters", &ConfigWrapper::ParameterNames,
-          doc_string.c_str());
+  cfg.def("list_parameter_names", &ConfigWrapper::ListParameterNames,
+          doc_string.c_str(), pybind11::arg("include_array_entries") = false);
 
   doc_string = R"doc(
       Replaces **all occurrences** of the given string placeholders.
