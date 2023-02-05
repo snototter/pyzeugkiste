@@ -83,6 +83,23 @@ set_target_properties(
 
 target_compile_features(${pyzeugkiste_BINDINGS_TARGET} PUBLIC cxx_std_17)
 
+# Had to disable LTO (link-time optimization):
+# Once 'werkzeugkiste::config' has been added to the target, the linker
+# broke. Older versions (Ubuntu 18) complained about non-PIC code (although
+# it was enabled on all(!) targets); newer versions (Ubuntu 20) crashed with:
+#   "lto1: internal compiler error: in add_symbol_to_partition_1, at 
+#    lto/lto-partition.c:153"
+# which lead me to this bug report:
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=88550
+# --> didn't work, all builds still used -fPIC -fLTO -shared and caused the
+# mentioned errors... The "interesting" part is that the pip installation
+# works without any issue whatsoever (would be interesting to dump the full
+# CMake environment on the different pip environments, both locally and on
+# the CI runners...)
+#set_property(
+#  TARGET ${pyzeugkiste_BINDINGS_TARGET}
+#  PROPERTY INTERPROCEDURAL_OPTIMIZATION FALSE)
+
 target_include_directories(
   ${pyzeugkiste_BINDINGS_TARGET}
   PUBLIC "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>")

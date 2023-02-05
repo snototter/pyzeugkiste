@@ -49,10 +49,11 @@ class ConfigWrapper {
     return cfg_->Equals(other.cfg_.get());
   }
 
-  pybind11::object GetGeneric(std::string_view key) {
+  pybind11::object GetGeneric(std::string_view key) const {
     // TODO query type, then call corresponding GetX()
     // TODO how to handle inhomogeneous types, i.e. tables and mixed arrays?
     //   --> initially, support only homogeneous arrays, else raise exception
+    return pybind11::none();
   }
 
   void SetBoolean(std::string_view key, bool value) {
@@ -393,6 +394,21 @@ inline void RegisterConfiguration(pybind11::module &m) {
           "of this configuration.");
 
   RegisterScalarAccess(cfg);
+
+  //---------------------------------------------------------------------------
+  // Provide generic access
+  // TODO
+  cfg.def("get", &ConfigWrapper::GetGeneric,
+          "TODO Not yet implemented - will return None", pybind11::arg("key"));  // Needs std::variant
+  // cfg.def("set", &ConfigWrapper::SetGeneric,
+
+  cfg.def("__getitem__", [](const ConfigWrapper &self, const std::string& key) {
+            return self.GetGeneric(key);
+          },
+          "TODO Not yet implemented - will return None", pybind11::arg("key"));  // Needs std::variant
+
+
+  // TODO size property
 
   //---------------------------------------------------------------------------
   // Getting/Setting lists/tuples/pairs
