@@ -13,15 +13,19 @@ endif()
 # ##############################################################################
 # ---- Set up the project ----
 
-# This build's version could have already been set, e.g. by the CMakeBuild
-# extension in `setup.py` if(NOT pyzeugkiste_VERSION) file(STRINGS
-# "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" pyzeugkiste_VERSION)
-# set(pyzeugkiste_VERSION "dev") endif() Cannot set it to "dev", because this
-# would break the CMake "project()" definition, which requires a
-# semver-compatible version.
-
 if(NOT pyzeugkiste_VERSION)
-  set(pyzeugkiste_VERSION ${SKBUILD_PROJECT_VERSION})
+  # When installing via pip, scikit-build-core will configure CMake.
+  # On unix, this will properly set the version (i.e. as specified in
+  # pyproject.toml)
+  # On macOS, however, our test builds failed because skbuild added
+  # the prefix "-current_version ". The following regex is an attempt
+  # to fix this by extracting only the "major.minor.patch" part of the
+  # given string.
+  string(REGEX REPLACE "^.*([0-9]+\\.[0-9]+\\.[0-9]+).*$" "\\1"
+    pyzeugkiste_VERSION "${SKBUILD_PROJECT_VERSION}")
+  
+  message(STATUS "SKBUILD_PROJECT_VERSION is '${SKBUILD_PROJECT_VERSION}', pyzeugkiste_VERSION after regex is '${pyzeugkiste_VERSION}'")
+  # set(pyzeugkiste_VERSION ${SKBUILD_PROJECT_VERSION})
 endif()
 
 # Set up the project project(pyzeugkiste VERSION ${pyzeugkiste_VERSION}
@@ -67,9 +71,6 @@ target_include_directories(
   ${pyzeugkiste_BINDINGS_TARGET}
   PUBLIC "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>")
 
-# target_include_directories( ${pyzeugkiste_BINDINGS_TARGET} SYSTEM PUBLIC
-# "${CMAKE_CURRENT_SOURCE_DIR}/include" )
-
 # Fetch the library:
 include(FetchContent)
 FetchContent_Declare(
@@ -79,9 +80,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(werkzeugkiste)
 message(STATUS "werkzeugkiste v${werkzeugkiste_VERSION}")
 
-# We link the werkzeugkiste components statically, but need to ensure that they
-# are build with position independent code. Otherwise, the python binding, which
-# is a shared library, can't be linked.
+# Components of werkzeugkiste are compiled with position independent code by
+# default. Thus, we don't need to explicitly enable PIC here.
 target_link_libraries(${pyzeugkiste_BINDINGS_TARGET}
                       PUBLIC werkzeugkiste::geometry)
 target_link_libraries(
