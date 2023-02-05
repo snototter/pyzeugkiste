@@ -435,7 +435,7 @@ inline void RegisterConfiguration(pybind11::module &m) {
       .. code-block:: python
          :caption: Extracted parameter names
 
-         named_parameters = [  # list_parameter_names(True)
+         named_parameters = [  # list_parameter_names(False)
            'str1',
            'values',
            'values.numeric',
@@ -450,7 +450,7 @@ inline void RegisterConfiguration(pybind11::module &m) {
            'values.other.time1'
          ]
 
-         named_parameters = [  # list_parameter_names(False)
+         named_parameters = [  # list_parameter_names(True)
            'str1',
            'values',
            'values.numeric',
