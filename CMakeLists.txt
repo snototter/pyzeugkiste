@@ -13,14 +13,15 @@ endif()
 # ##############################################################################
 # ---- Set up the project ----
 
+# Had to replace the simple project() call by the following workaround, because
+# the macOS builds failed when setting the version.
+# Exemplary failed build: https://github.com/snototter/pyzeugkiste/actions/runs/4098116828/jobs/7066986892
+# On linux, setting the version via the scikit-build-core provided variable
+# worked as expected. We just need to catch the "development case", i.e.
+# when neither pyzeugkiste_VERSION, nor the scikit SKBUILD_PROJECT_VERSION
+# are provided. (Calling project() with an empty version string would result
+# in a CMake warning I want to suppress with the following)
 if(NOT pyzeugkiste_VERSION)
-  # When installing via pip, scikit-build-core will configure CMake.
-  # On unix, this will properly set the version (i.e. as specified in
-  # pyproject.toml)
-  # On macOS, however, our test builds failed because skbuild added
-  # the prefix "-current_version ". The following regex is an attempt
-  # to fix this by extracting only the "major.minor.patch" part of the
-  # given string.
   string(REGEX REPLACE "^.*([0-9]+\\.[0-9]+\\.[0-9]+).*$" "\\1"
     pyzeugkiste_VERSION "${SKBUILD_PROJECT_VERSION}")
   
@@ -28,16 +29,31 @@ if(NOT pyzeugkiste_VERSION)
   # set(pyzeugkiste_VERSION ${SKBUILD_PROJECT_VERSION})
 endif()
 
-# Set up the project project(pyzeugkiste VERSION ${pyzeugkiste_VERSION}
-# LANGUAGES CXX)
-project(
-  pyzeugkiste
-  VERSION ${pyzeugkiste_VERSION}
-  DESCRIPTION
-    "PyZeugKiste: Python bindings for werkzeugkiste and additional python-only helpers."
-  HOMEPAGE_URL "https://github.com/snototter/pyzeugkiste"
-  LANGUAGES CXX)
+# If we now have a valid version string, we do *not* set it on macOS.
+# If we don't have a version string, we omit the VERSION keyword to avoid
+# the CMake warning.
+set(pyzeugkiste_DESCRIPTION "PyZeugKiste: Python bindings for werkzeugkiste and additional python-only helpers.")
+set (pyzeugkiste_URL "https://pyzeugkiste.readthedocs.io/en/latest/")
 
+if(APPLE OR (NOT pyzeugkiste_VERSION))
+  project(
+    pyzeugkiste
+    DESCRIPTION ${pyzeugkiste_DESCRIPTION}
+    HOMEPAGE_URL ${pyzeugkiste_URL}
+    LANGUAGES CXX)
+else()
+  project(
+    pyzeugkiste
+    VERSION ${pyzeugkiste_VERSION}
+    DESCRIPTION ${pyzeugkiste_DESCRIPTION}
+    HOMEPAGE_URL ${pyzeugkiste_URL}
+    LANGUAGES CXX)
+endif()
+
+
+if(NOT SKBUILD_PROJECT_NAME)
+  set(SKBUILD_PROJECT_NAME pyzeugkiste)
+endif()
 set(pyzeugkiste_BINDINGS_TARGET _core)
 set(pyzeugkiste_BINDINGS_PRINT_NAME ${SKBUILD_PROJECT_NAME})
 
@@ -122,4 +138,4 @@ set_target_properties(
 install(TARGETS ${pyzeugkiste_BINDINGS_TARGET}
         DESTINATION ${SKBUILD_PROJECT_NAME})
 
-message(STATUS "Configured pyzeugkiste v${pyzeugkiste_VERSION}")
+message(STATUS "Configured pyzeugkiste ${pyzeugkiste_VERSION}")
