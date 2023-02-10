@@ -20,6 +20,36 @@ namespace wzkcfg = werkzeugkiste::config;
 // to python exceptions, similar to
 // https://pybind11.readthedocs.io/en/stable/advanced/exceptions.html
 
+/*
+from pyzeugkiste import config as cfg
+
+c = cfg.Configuration.load_toml_string("""
+    int = 1
+    flt = 3.5
+    str = 'value'
+    day = 2022-12-01
+    lst = [1, 2, 3, 4]
+    mixed1 = [1, 3.5, 'str']
+    mixed2 = [1, 'value', { key = 'foo', value = 'bar' }]
+
+    [tbl]
+    vi = 2
+    vf = 1.5e3
+    """)
+c.list_parameter_names()
+c['str']
+c['flt']
+c['float']
+c['int']
+c['day']
+c['lst']
+c['mixed1']
+c['mixed2']
+c['tbl']
+c['tbl.vi']
+
+*/
+
 namespace werkzeugkiste::bindings {
 
 class ConfigWrapper {
@@ -36,99 +66,121 @@ class ConfigWrapper {
     return instance;
   }
 
-  ConfigWrapper() {
-    // To initialize an empty config, we simply load an empty TOML string.
-    cfg_ = wzkcfg::Configuration::LoadTOMLString("");
-  }
+  std::string ToTOMLString() const { return cfg_.ToTOML(); }
 
-  std::string ToTOMLString() const { return cfg_->ToTOML(); }
-
-  std::string ToJSONString() const { return cfg_->ToJSON(); }
+  std::string ToJSONString() const { return cfg_.ToJSON(); }
 
   bool Equals(const ConfigWrapper &other) const {
-    return cfg_->Equals(other.cfg_.get());
+    return cfg_.Equals(other.cfg_);
   }
 
-  pybind11::object GetGeneric(std::string_view key) const {
-    // TODO query type, then call corresponding GetX()
-    // TODO how to handle inhomogeneous types, i.e. tables and mixed arrays?
-    //   --> initially, support only homogeneous arrays, else raise exception
-    return pybind11::none();
+  bool Empty() const { return cfg_.Empty(); }
+
+  // TODO bind exceptions
+
+  wzkcfg::ConfigType Type(std::string_view key) const { return cfg_.Type(key); }
+
+  wzkcfg::Configuration GetGroup(std::string_view key) const {
+    return cfg_.GetGroup(key);
   }
+
+  void ReplaceConfig(wzkcfg::Configuration &&c) { cfg_ = std::move(c); }
+
+  // pybind11::object GetGeneric(std::string_view key) const {
+  //   const wzkcfg::ConfigType tp = cfg_.Type(key);
+  //   switch (tp) {
+  //     case wzkcfg::ConfigType::Boolean:
+  //       return pybind11::bool_(GetBoolean(key));
+
+  //     case wzkcfg::ConfigType::Integer:
+  //       return pybind11::int_(GetInteger64(key));
+
+  //     case wzkcfg::ConfigType::FloatingPoint:
+  //       return pybind11::float_(GetDouble(key));
+
+  //     case wzkcfg::ConfigType::String:
+  //       return pybind11::str(GetString(key));
+
+  //     case wzkcfg::ConfigType::List:
+  //       WZKLOG_CRITICAL("TODO not yet implemented!");
+  //       return pybind11::list();
+
+  //     // case wzkcfg::ConfigType::Group: {
+  //     //     ConfigWrapper cw{};
+  //     //     cw.cfg_ = cfg_.GetGroup(key);
+  //     //     return cw;
+  //     //   }
+  //       // WZKLOG_CRITICAL("TODO not yet implemented!");
+  //       // return pybind11::dict();
+  //   }
+  //   // TODO how to handle inhomogeneous types, i.e. tables and mixed arrays?
+  //   //   --> initially, support only homogeneous arrays, else raise exception
+  //   // TODO default: raise notimplemented error
+  //   return pybind11::none();
+  // }
+
+  //---------------------------------------------------------------------------
+  // Scalar data types
 
   void SetBoolean(std::string_view key, bool value) {
-    return cfg_->SetBoolean(key, value);
+    cfg_.SetBoolean(key, value);
   }
 
-  bool GetBoolean(std::string_view key) const { return cfg_->GetBoolean(key); }
+  bool GetBoolean(std::string_view key) const { return cfg_.GetBoolean(key); }
 
-  bool GetBooleanOrDefault(std::string_view key, bool default_value) const {
-    return cfg_->GetBooleanOrDefault(key, default_value);
+  bool GetBooleanOr(std::string_view key, bool default_value) const {
+    return cfg_.GetBooleanOr(key, default_value);
   }
-
-  //  void SetInteger32(std::string_view key, int32_t value) {
-  //    return cfg_->SetInteger32(key, value);
-  //  }
-
-  //  int32_t GetInteger32(std::string_view key) const {
-  //    return cfg_->GetInteger32(key);
-  //  }
-
-  //  int32_t GetInteger32OrDefault(std::string_view key, int32_t default_value)
-  //  const {
-  //    return cfg_->GetInteger32OrDefault(key, default_value);
-  //  }
 
   void SetInteger64(std::string_view key, int64_t value) {
-    return cfg_->SetInteger64(key, value);
+    cfg_.SetInteger64(key, value);
   }
 
   int64_t GetInteger64(std::string_view key) const {
-    return cfg_->GetInteger64(key);
+    return cfg_.GetInteger64(key);
   }
 
-  int64_t GetInteger64OrDefault(std::string_view key,
-                                int64_t default_value) const {
-    return cfg_->GetInteger64OrDefault(key, default_value);
+  int64_t GetInteger64Or(std::string_view key, int64_t default_value) const {
+    return cfg_.GetInteger64Or(key, default_value);
   }
 
   void SetDouble(std::string_view key, double value) {
-    return cfg_->SetDouble(key, value);
+    cfg_.SetDouble(key, value);
   }
 
-  double GetDouble(std::string_view key) const { return cfg_->GetDouble(key); }
+  double GetDouble(std::string_view key) const { return cfg_.GetDouble(key); }
 
-  double GetDoubleOrDefault(std::string_view key, double default_value) const {
-    return cfg_->GetDoubleOrDefault(key, default_value);
+  double GetDoubleOr(std::string_view key, double default_value) const {
+    return cfg_.GetDoubleOr(key, default_value);
   }
 
   void SetString(std::string_view key, std::string_view value) {
-    return cfg_->SetString(key, value);
+    cfg_.SetString(key, value);
   }
 
   std::string GetString(std::string_view key) const {
-    return cfg_->GetString(key);
+    return cfg_.GetString(key);
   }
 
-  std::string GetStringOrDefault(std::string_view key,
-                                 std::string_view default_value) const {
-    return cfg_->GetStringOrDefault(key, default_value);
+  std::string GetStringOr(std::string_view key,
+                          std::string_view default_value) const {
+    return cfg_.GetStringOr(key, default_value);
   }
 
   // Special functions
   std::vector<std::string> ListParameterNames(
       bool include_array_entries) const {
-    return cfg_->ListParameterNames(include_array_entries);
+    return cfg_.ListParameterNames(include_array_entries);
   }
 
   bool ReplacePlaceholders(
       const std::vector<std::pair<std::string_view, std::string_view>>
           &replacements) {
-    return cfg_->ReplaceStringPlaceholders(replacements);
+    return cfg_.ReplaceStringPlaceholders(replacements);
   }
 
  private:
-  std::unique_ptr<werkzeugkiste::config::Configuration> cfg_{};
+  wzkcfg::Configuration cfg_{};
 };
 
 inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
@@ -173,7 +225,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
       Returns an optional :class:`bool` parameter or the default value.
 
       **Corresponding C++ API:**
-      ``werkzeugkiste::config::Configuration::GetBooleanOrDefault``.
+      ``werkzeugkiste::config::Configuration::GetBooleanOr``.
 
       Args:
         key: The fully-qualified parameter name, *e.g.*
@@ -181,9 +233,8 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         default_value: If ``key`` does not exist, this value
           will be returned instead.
       )doc";
-  cfg.def("get_bool_or", &ConfigWrapper::GetBooleanOrDefault,
-          doc_string.c_str(), pybind11::arg("key"),
-          pybind11::arg("default_value"));
+  cfg.def("get_bool_or", &ConfigWrapper::GetBooleanOr, doc_string.c_str(),
+          pybind11::arg("key"), pybind11::arg("default_value"));
 
   //---------------------------------------------------------------------------
   // Getting/setting scalars: Integer64
@@ -234,8 +285,8 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
       C++ utility differs between 32- and 64-bit representations.
 
       **Corresponding C++ API:**
-      ``werkzeugkiste::config::Configuration::GetInteger32OrDefault`` or
-      ``werkzeugkiste::config::Configuration::GetInteger64OrDefault``.
+      ``werkzeugkiste::config::Configuration::GetInteger32Or`` or
+      ``werkzeugkiste::config::Configuration::GetInteger64Or``.
 
       Args:
         key: The fully-qualified parameter name, *e.g.*
@@ -243,9 +294,8 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         default_value: If the parameter does not exist, this value
           will be returned instead.
       )doc";
-  cfg.def("get_int_or", &ConfigWrapper::GetInteger64OrDefault,
-          doc_string.c_str(), pybind11::arg("key"),
-          pybind11::arg("default_value"));
+  cfg.def("get_int_or", &ConfigWrapper::GetInteger64Or, doc_string.c_str(),
+          pybind11::arg("key"), pybind11::arg("default_value"));
 
   //---------------------------------------------------------------------------
   // Getting/setting scalars: Double
@@ -288,7 +338,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
       Returns an optional :class:`float` parameter or the default value.
 
       **Corresponding C++ API:**
-      ``werkzeugkiste::config::Configuration::GetDoubleOrDefault``.
+      ``werkzeugkiste::config::Configuration::GetDoubleOr``.
 
       Args:
         key: The fully-qualified parameter name, *e.g.*
@@ -296,9 +346,8 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         default_value: If the parameter does not exist, this value
           will be returned instead.
       )doc";
-  cfg.def("get_double_or", &ConfigWrapper::GetDoubleOrDefault,
-          doc_string.c_str(), pybind11::arg("key"),
-          pybind11::arg("default_value"));
+  cfg.def("get_double_or", &ConfigWrapper::GetDoubleOr, doc_string.c_str(),
+          pybind11::arg("key"), pybind11::arg("default_value"));
 
   //---------------------------------------------------------------------------
   // Getting/setting scalars: String
@@ -341,7 +390,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
       Returns an optional :class:`str` parameter or the default value.
 
       **Corresponding C++ API:**
-      ``werkzeugkiste::config::Configuration::GetStringOrDefault``.
+      ``werkzeugkiste::config::Configuration::GetStringOr``.
 
       Args:
         key: The fully-qualified parameter name, *e.g.*
@@ -349,8 +398,54 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         default_value: If the parameter does not exist, this value
           will be returned instead.
       )doc";
-  cfg.def("get_str_or", &ConfigWrapper::GetStringOrDefault, doc_string.c_str(),
+  cfg.def("get_str_or", &ConfigWrapper::GetStringOr, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("default_value"));
+}
+
+inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
+  // TODO doc
+  cfg.def(
+      "__getitem__",
+      [cfg](const ConfigWrapper &self,
+            const std::string &key) -> pybind11::object {
+        switch (self.Type(key)) {
+          case wzkcfg::ConfigType::Boolean:
+            return pybind11::bool_(self.GetBoolean(key));
+
+          case wzkcfg::ConfigType::Integer:
+            return pybind11::int_(self.GetInteger64(key));
+
+          case wzkcfg::ConfigType::FloatingPoint:
+            return pybind11::float_(self.GetDouble(key));
+
+          case wzkcfg::ConfigType::String:
+            return pybind11::str(self.GetString(key));
+
+          case wzkcfg::ConfigType::List:
+            WZKLOG_CRITICAL("TODO not yet implemented!");
+            return pybind11::list();
+
+          case wzkcfg::ConfigType::Group: {
+            pybind11::object obj = cfg();
+            auto *ptr = obj.cast<ConfigWrapper *>();
+            ptr->ReplaceConfig(self.GetGroup(key));
+            return obj;
+          }
+            // WZKLOG_CRITICAL("TODO not yet implemented!");
+            // return pybind11::dict();
+        }
+        return pybind11::
+            none();  // TODO exception
+                     //  if (self.cfg_.Type(key) == wzkcfg::ConfigType::Group) {
+                     //    pybind11::object py_obj = cfg();
+                     //    auto *ptr = py_obj.cast<ConfigWrapper*>();
+                     //    ptr->cfg_ = self.cfg_.GetGroup(key);
+                     //    return py_obj;
+                     //  } else {
+                     //    return self.GetGeneric(key);
+                     //  }
+      },
+      "TODO Not yet implemented - will return None", pybind11::arg("key"));
 }
 
 inline void RegisterConfiguration(pybind11::module &m) {
@@ -393,20 +488,16 @@ inline void RegisterConfiguration(pybind11::module &m) {
           "Returns a formatted `JSON <https://www.json.org/>`__ representation "
           "of this configuration.");
 
-  RegisterScalarAccess(cfg);
-
   //---------------------------------------------------------------------------
-  // Provide generic access
+  // Getter/Setter
+
+  RegisterScalarAccess(cfg);
+  RegisterGenericAccess(cfg);
   // TODO
-  cfg.def("get", &ConfigWrapper::GetGeneric,
-          "TODO Not yet implemented - will return None", pybind11::arg("key"));  // Needs std::variant
-  // cfg.def("set", &ConfigWrapper::SetGeneric,
-
-  cfg.def("__getitem__", [](const ConfigWrapper &self, const std::string& key) {
-            return self.GetGeneric(key);
-          },
-          "TODO Not yet implemented - will return None", pybind11::arg("key"));  // Needs std::variant
-
+  // cfg.def("get", &ConfigWrapper::GetGeneric,
+  //         "TODO Not yet implemented - will return None",
+  //         pybind11::arg("key"));  // Needs std::variant
+  // // cfg.def("set", &ConfigWrapper::SetGeneric,
 
   // TODO size property
 
@@ -530,6 +621,9 @@ inline void RegisterConfiguration(pybind11::module &m) {
   cfg.def("replace_placeholders", &ConfigWrapper::ReplacePlaceholders,
           doc_string.c_str(), pybind11::arg("placeholders"));
 
+  cfg.def("empty", &ConfigWrapper::Empty,
+          "Checks if this configuration has any parameters set.");
+
   // Equality checks
   cfg.def(
       "__eq__",
@@ -552,6 +646,48 @@ inline void RegisterConfiguration(pybind11::module &m) {
       doc_stream.str().c_str(), pybind11::arg("other"));
 
   // TODO __str__ and __repr__, e.g. (x 1st level keys, y parameters in total)
+  cfg.def("__str__",
+          [](const ConfigWrapper &c) {
+            //  std::ostringstream s;
+            //  s << l;
+            //  return s.str();
+            return "TODO(ConfigWrapper::ToString)";
+          })
+      .def("__repr__", [](const ConfigWrapper &c) {
+        return "TODO(ConfigWrapper::ToRepr)";
+        // std::ostringstream s;
+        // s << '<' << l << '>';
+        // return s.str();
+      });
+
+  // pybind11::register_exception_translator([](std::exception_ptr p) {
+  //       try {
+  //           if (p) {
+  //               std::rethrow_exception(p);
+  //           }
+  //       } catch (const wzkcfg::KeyError &e) {
+  //           PyErr_SetString(PyExc_KeyError, e.what());
+  //       } catch (const wzkcfg::TypeError &e) {
+  //         PyErr_SetString(PyExc_ValueError, e.what());
+  //       } catch (const wzkcfg::ParseError &e) {
+  //         PyErr_SetString(PyExc_RuntimeError, e.what());
+  //       }
+  //   });
+  pybind11::register_local_exception<wzkcfg::KeyError>(m, "KeyError",
+                                                       PyExc_KeyError);
+  pybind11::register_local_exception<wzkcfg::TypeError>(m, "TypeError",
+                                                        PyExc_ValueError);
+  pybind11::register_local_exception<wzkcfg::ParseError>(m, "ParseError",
+                                                         PyExc_RuntimeError);
+  // TODO override, or else the stacktrace gets cluttered by the internal
+  // C++ module name, e.g. pyzeugkiste._core._cfg.KeyError
+  // m.attr("KeyError").attr("__qualname__") = "FIXME";
+  m.attr("KeyError").attr("__repr__") = pybind11::cpp_function(
+      [](const wzkcfg::KeyError &e) { return "TODO/KeyError"; },
+      pybind11::name("__repr__"), pybind11::is_method(m.attr("KeyError")));
+  // m.attr("ParseError").def("__repr__", [](const wzkcfg::ParseError &e) {
+  //   return "TODO/ParseError";
+  // });
 }
 }  // namespace werkzeugkiste::bindings
 
