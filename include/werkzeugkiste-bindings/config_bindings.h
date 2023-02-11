@@ -509,18 +509,24 @@ inline void RegisterConfiguration(pybind11::module &m) {
   doc_string = R"doc(
     Encapsulates parameters.
 
-    This class provides programmable access to a
-    `TOML configuration <https://toml.io/en/>`__. It supports
-    dictionary-like access to the parameters and provides several
-    additional utilities, such as replacing placeholders, adjusting
+    This class provides dictionary-like access to parameters and
+    provides several additional utilities, such as replacing placeholders, adjusting
     relative file paths, merging/nesting configurations, *etc.*
 
-    Provides type-checked access via :meth:`get_int`, :meth:`get_str`,
+    This utitility is intended for "typical" configuration scenarios. Thus,
+    it supports the following types:
+    * Boolean
+    * Integral and floating point numbers, *i.e.* :class:`int` and :class:`float`.
+    * Strings, *i.e.* :class:`str`
+    * Lists, *i.e.* :class:`list`
+    * Parameter groups (similar to :class:`dict`)
+
+    Type-checked access is provided via :meth:`get_int`, :meth:`get_str`,
     *etc.* or allow default values if a *key* does not exist via
     :meth:`get_int_or`, :meth:`get_float_or`, *etc.*
     Parameters can be set via corresponding setters, such as :meth:`set_bool`.
     For convenience, access is also supported via :meth:`__getitem__`
-    and :meth:`__setitem__`
+    and :meth:`__setitem__`.
 
     Implicit numeric casts will be performed if the value can be exactly
     represented in the target type. For example, an :class:`int` value
