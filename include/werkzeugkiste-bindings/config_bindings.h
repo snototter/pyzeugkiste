@@ -4,6 +4,7 @@
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <werkzeugkiste/config/casts.h>
 #include <werkzeugkiste/config/configuration.h>
 #include <werkzeugkiste/logging.h>
 
@@ -24,6 +25,7 @@ namespace wzkcfg = werkzeugkiste::config;
 from pyzeugkiste import config as cfg
 
 c = cfg.Configuration.load_toml_string("""
+    my-bool = true
     int = 1
     flt = 3.5
     str = 'value'
@@ -37,6 +39,7 @@ c = cfg.Configuration.load_toml_string("""
     vf = 1.5e3
     """)
 c.list_parameter_names()
+
 c['str']
 c['flt']
 c['float']
@@ -47,6 +50,28 @@ c['mixed1']
 c['mixed2']
 c['tbl']
 c['tbl.vi']
+
+c['my-bool'] = False # Should work
+c['my-bool']
+c['my-bool'] = 'fail' # Should fail
+
+c['tbl.vi'] = 42
+c['tbl.vi'] = 0.5
+c['tbl.vi'] = True
+c['tbl.vi'] = 'abc'
+c['tbl.vi'] = [1, 2]
+c['tbl.vi']
+
+c['str'] = 3
+
+'str' in c
+'tbl' in c
+
+c['foo'] = 123.2
+c['foo']
+c['foo'] = 10
+c['foo']
+c['foo'] = False # fail
 
 */
 
@@ -76,7 +101,7 @@ class ConfigWrapper {
 
   bool Empty() const { return cfg_.Empty(); }
 
-  // TODO bind exceptions
+  bool Contains(std::string_view key) const { return cfg_.Contains(key); }
 
   wzkcfg::ConfigType Type(std::string_view key) const { return cfg_.Type(key); }
 
@@ -85,39 +110,6 @@ class ConfigWrapper {
   }
 
   void ReplaceConfig(wzkcfg::Configuration &&c) { cfg_ = std::move(c); }
-
-  // pybind11::object GetGeneric(std::string_view key) const {
-  //   const wzkcfg::ConfigType tp = cfg_.Type(key);
-  //   switch (tp) {
-  //     case wzkcfg::ConfigType::Boolean:
-  //       return pybind11::bool_(GetBoolean(key));
-
-  //     case wzkcfg::ConfigType::Integer:
-  //       return pybind11::int_(GetInteger64(key));
-
-  //     case wzkcfg::ConfigType::FloatingPoint:
-  //       return pybind11::float_(GetDouble(key));
-
-  //     case wzkcfg::ConfigType::String:
-  //       return pybind11::str(GetString(key));
-
-  //     case wzkcfg::ConfigType::List:
-  //       WZKLOG_CRITICAL("TODO not yet implemented!");
-  //       return pybind11::list();
-
-  //     // case wzkcfg::ConfigType::Group: {
-  //     //     ConfigWrapper cw{};
-  //     //     cw.cfg_ = cfg_.GetGroup(key);
-  //     //     return cw;
-  //     //   }
-  //       // WZKLOG_CRITICAL("TODO not yet implemented!");
-  //       // return pybind11::dict();
-  //   }
-  //   // TODO how to handle inhomogeneous types, i.e. tables and mixed arrays?
-  //   //   --> initially, support only homogeneous arrays, else raise exception
-  //   // TODO default: raise notimplemented error
-  //   return pybind11::none();
-  // }
 
   //---------------------------------------------------------------------------
   // Scalar data types
@@ -402,6 +394,38 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           pybind11::arg("key"), pybind11::arg("default_value"));
 }
 
+template <typename T>
+void GenericScalarSetterUtil(ConfigWrapper &cfg, std::string_view key,
+                             T value) {
+  if constexpr (std::is_same_v<T, bool>) {
+    cfg.SetBoolean(key, value);
+  } else if constexpr (std::is_arithmetic_v<T>) {
+    constexpr auto value_type = std::is_integral_v<T>
+                                    ? wzkcfg::ConfigType::Integer
+                                    : wzkcfg::ConfigType::FloatingPoint;
+    const auto expected = cfg.Contains(key) ? cfg.Type(key) : value_type;
+
+    if (expected == wzkcfg::ConfigType::Integer) {
+      cfg.SetInteger64(key, wzkcfg::CheckedCast<int64_t>(value));
+    } else if (expected == wzkcfg::ConfigType::FloatingPoint) {
+      cfg.SetDouble(key, wzkcfg::CheckedCast<double>(value));
+    } else {
+      std::string msg{"Changing the type is not allowed. Parameter `"};
+      msg += key;
+      msg += "` is `";
+      msg += wzkcfg::ToString(expected);
+      msg += "`, but input value is of type `";
+      msg += wzkcfg::TypeName<T>();
+      msg += "!";
+      throw wzkcfg::TypeError{msg};
+    }
+  } else if constexpr (std::is_same_v<T, std::string>) {
+    cfg.SetString(key, value);
+  } else {
+    throw std::runtime_error("Setting this type is not yet supported!");
+  }
+}
+
 inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
   // TODO doc
   cfg.def(
@@ -421,9 +445,8 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
           case wzkcfg::ConfigType::String:
             return pybind11::str(self.GetString(key));
 
-          case wzkcfg::ConfigType::List:
-            WZKLOG_CRITICAL("TODO not yet implemented!");
-            return pybind11::list();
+            // case wzkcfg::ConfigType::List:
+            // return pybind11::list();
 
           case wzkcfg::ConfigType::Group: {
             pybind11::object obj = cfg();
@@ -433,19 +456,43 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
           }
             // WZKLOG_CRITICAL("TODO not yet implemented!");
             // return pybind11::dict();
+
+          default:
+            throw std::runtime_error(
+                "Other types (list, date, ...) are not yet implemented!");
         }
-        return pybind11::
-            none();  // TODO exception
-                     //  if (self.cfg_.Type(key) == wzkcfg::ConfigType::Group) {
-                     //    pybind11::object py_obj = cfg();
-                     //    auto *ptr = py_obj.cast<ConfigWrapper*>();
-                     //    ptr->cfg_ = self.cfg_.GetGroup(key);
-                     //    return py_obj;
-                     //  } else {
-                     //    return self.GetGeneric(key);
-                     //  }
+        return pybind11::none();
       },
-      "TODO Not yet implemented - will return None", pybind11::arg("key"));
+      "Returns the value at the given key (fully-qualified parameter name).",
+      pybind11::arg("key"));
+  // TODO doc: currently, only scalars
+  // type change is not supported
+  cfg.def(
+      "__setitem__",
+      [cfg](ConfigWrapper &self, std::string_view key,
+            const pybind11::object &value) -> void {
+        if (pybind11::isinstance<pybind11::str>(value)) {
+          GenericScalarSetterUtil(self, key, value.cast<std::string>());
+        } else if (pybind11::isinstance<pybind11::bool_>(value)) {
+          GenericScalarSetterUtil(self, key, value.cast<bool>());
+        } else if (pybind11::isinstance<pybind11::int_>(value)) {
+          GenericScalarSetterUtil(self, key, value.cast<int64_t>());
+        } else if (pybind11::isinstance<pybind11::float_>(value)) {
+          GenericScalarSetterUtil(self, key, value.cast<double>());
+        } else if (pybind11::isinstance<pybind11::list>(value)) {
+          WZKLOG_ERROR("Input value for `{}` is a list - not yet supported",
+                       key);
+        } else if (pybind11::isinstance<pybind11::dict>(value)) {
+          WZKLOG_ERROR("Input value for `{}` is a dict - not yet supported",
+                       key);
+        } else {
+          WZKLOG_ERROR(
+              "Input value for `{}` is unknown - need to extend the type check",
+              key);
+        }
+      },
+      "Sets the parameter value.", pybind11::arg("key"),
+      pybind11::arg("value"));
 }
 
 inline void RegisterConfiguration(pybind11::module &m) {
@@ -659,6 +706,10 @@ inline void RegisterConfiguration(pybind11::module &m) {
         // s << '<' << l << '>';
         // return s.str();
       });
+
+  cfg.def("__contains__", &ConfigWrapper::Contains,
+          "Checks if the given key (fully-qualified parameter name) exists.",
+          pybind11::arg("key"));
 
   // pybind11::register_exception_translator([](std::exception_ptr p) {
   //       try {
