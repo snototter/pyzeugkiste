@@ -14,21 +14,26 @@ def test_scalars():
     ###########################################################################
     # Boolean
     assert not cfg.get_bool('bool')
+    assert not cfg['bool']
+    assert isinstance(cfg['bool'], bool)
 
     # -- Implicit type conversion is not allowed
-    with pytest.raises(RuntimeError):
+    with pytest.raises(config.TypeError):
         cfg.get_bool('int')
-    with pytest.raises(RuntimeError):
+    with pytest.raises(config.TypeError):
         cfg.get_bool('flt')
-    with pytest.raises(RuntimeError):
+    with pytest.raises(config.TypeError):
         cfg.get_bool('str')
 
     # -- Raises an error if the key cannot be found
-    with pytest.raises(RuntimeError):
+    with pytest.raises(config.KeyError):
         cfg.get_bool('nested.scalars.b')
+    with pytest.raises(config.KeyError):
+        cfg['nested.scalars.b']
 
     # -- Solution 1) Set the missing property
     cfg.set_bool('nested.scalars.bool', value = True)
+    #TODO also set via __setitem__
     assert cfg.get_bool('nested.scalars.bool')
 
     # -- Solution 2) Explicitly request a default value
@@ -39,10 +44,10 @@ def test_scalars():
     # Strings
     assert cfg.get_str('str') == 'value'
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(config.TypeError):
         cfg.get_str('nested.scalars.bool')
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(config.KeyError):
         cfg.get_str('nested.scalars.str')
 
     cfg.set_str('nested.scalars.str', 'frobmorten')

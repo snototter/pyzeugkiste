@@ -4,11 +4,11 @@ from pathlib import Path
 #__doc__ = _files.__doc__
 
 #TODO doc
-#TODO bindings
+#TODO bindings (for generator & IOError)
 #class AsciiFileIterator(object):
 #    def __init__(self, filename: Union[str, Path]) -> None:
 #        self._iterator = _files.AsciiFileIterator(filename)
-#    
+#
 #    def __iter__(self):
 #        return self
 #
