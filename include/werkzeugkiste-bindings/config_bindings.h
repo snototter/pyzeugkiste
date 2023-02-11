@@ -307,7 +307,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           the type is not supported); or if the parent path could not be
           created (*e.g.* if you requested to implicitly create an array).
       )doc";
-  cfg.def("set_double", &ConfigWrapper::SetDouble, doc_string.c_str(),
+  cfg.def("set_float", &ConfigWrapper::SetDouble, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("value"));
 
   doc_string = R"doc(
@@ -323,7 +323,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
       Raises:
         RuntimeError: If ``key`` does not exist.
       )doc";
-  cfg.def("get_double", &ConfigWrapper::GetDouble, doc_string.c_str(),
+  cfg.def("get_float", &ConfigWrapper::GetDouble, doc_string.c_str(),
           pybind11::arg("key"));
 
   doc_string = R"doc(
@@ -338,7 +338,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         default_value: If the parameter does not exist, this value
           will be returned instead.
       )doc";
-  cfg.def("get_double_or", &ConfigWrapper::GetDoubleOr, doc_string.c_str(),
+  cfg.def("get_float_or", &ConfigWrapper::GetDoubleOr, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("default_value"));
 
   //---------------------------------------------------------------------------
@@ -501,12 +501,57 @@ inline void RegisterConfiguration(pybind11::module &m) {
 
   std::string doc_string{};
   std::ostringstream doc_stream;
-  doc_stream
-      << "TODO A :class:`~" << config_name << "`.\n\n"
-      << "**Corresponding C++ API:** ``werkzeugkiste::config::Configuration``.";
+  // doc_stream
+  //     << "TODO A :class:`~" << config_name << "`.\n\n"
+  //     << "**Corresponding C++ API:**
+  //     ``werkzeugkiste::config::Configuration``.";
+  // TODO extend documentation
+  doc_string = R"doc(
+    Encapsulates parameters.
 
-  pybind11::class_<ConfigWrapper> cfg(m, "Configuration",
-                                      doc_stream.str().c_str());
+    This class provides programmable access to a
+    `TOML configuration <https://toml.io/en/>`__. It supports
+    dictionary-like access to the parameters and provides several
+    additional utilities, such as replacing placeholders, adjusting
+    relative file paths, merging/nesting configurations, *etc.*
+
+    Provides type-checked access via :meth:`get_int`, :meth:`get_str`,
+    *etc.* or allow default values if a *key* does not exist via
+    :meth:`get_int_or`, :meth:`get_float_or`, *etc.*
+    Parameters can be set via corresponding setters, such as :meth:`set_bool`.
+    For convenience, access is also supported via :meth:`__getitem__`
+    and :meth:`__setitem__`
+
+    Implicit numeric casts will be performed if the value can be exactly
+    represented in the target type. For example, an :class:`int` value
+    ``42`` can be exactly represented as :class:`float`, whereas a
+    :class:`float` of `0.5` can't be exactly cast to an :class:`int`.
+    For the latter, a :class:`~pyzeugkiste.config.TypeError` will be raised.
+
+    .. code-block:: toml
+         :caption: Example
+
+         cfg = config.Configuration.load_toml_string("""
+             int = 23
+             flt = 1.5
+             str = "value"
+             bool = false
+             path = "/home/%USR%/work"
+             """)
+         cfg['flt']      # Returns a float
+         cfg['flt'] = 3  # Parameter is still a float
+
+         cfg['my-str'] = 'value'  # Creates a new string parameter
+         cfg.get_str('my_str')    # Alternative access
+
+         cfg.get_int_or('unknown', -1)  # Allow default value
+
+         cfg.replace_placeholders([('%USR%', 'whoami')])
+
+         print(cfg.to_toml_str())
+    )doc";
+
+  pybind11::class_<ConfigWrapper> cfg(m, "Configuration", doc_string.c_str());
 
   cfg.def(pybind11::init<>(), "Creates an empty configuration.");
 
@@ -540,11 +585,6 @@ inline void RegisterConfiguration(pybind11::module &m) {
 
   RegisterScalarAccess(cfg);
   RegisterGenericAccess(cfg);
-  // TODO
-  // cfg.def("get", &ConfigWrapper::GetGeneric,
-  //         "TODO Not yet implemented - will return None",
-  //         pybind11::arg("key"));  // Needs std::variant
-  // // cfg.def("set", &ConfigWrapper::SetGeneric,
 
   // TODO size property
 
