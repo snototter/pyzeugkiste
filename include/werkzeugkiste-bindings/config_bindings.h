@@ -22,9 +22,9 @@ namespace wzkcfg = werkzeugkiste::config;
 // https://pybind11.readthedocs.io/en/stable/advanced/exceptions.html
 
 /*
-from pyzeugkiste import config as cfg
+from pyzeugkiste import config
 
-c = cfg.Configuration.load_toml_string("""
+c = config.Configuration.load_toml_string("""
     my-bool = true
     int = 1
     flt = 3.5
@@ -171,6 +171,15 @@ class ConfigWrapper {
     return cfg_.ReplaceStringPlaceholders(replacements);
   }
 
+  void LoadNestedTOML(std::string_view key) {
+    cfg_.LoadNestedTOMLConfiguration(key);
+  }
+
+  bool AdjustRelativePaths(std::string_view base_path,
+                           const std::vector<std::string_view> &parameters) {
+    cfg_.AdjustRelativePaths(base_path, parameters);
+  }
+
  private:
   wzkcfg::Configuration cfg_{};
 };
@@ -190,7 +199,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         value: The value to be set.
 
       Raises:
-        RuntimeError: If ``key`` exists, but is of a different type (changing
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of a different type (changing
           the type is not supported); or if the parent path could not be
           created (*e.g.* if you requested to implicitly create an array).
       )doc";
@@ -208,7 +217,9 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           ``"section1.subgroup.my-bool"``.
 
       Raises:
-        RuntimeError: If ``key`` does not exist.
+        :class:`~pyzeugkiste.config.KeyError`: If ``key`` does not exist.
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is not
+          a boolean parameter.
       )doc";
   cfg.def("get_bool", &ConfigWrapper::GetBoolean, doc_string.c_str(),
           pybind11::arg("key"));
@@ -246,7 +257,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         value: The value to be set.
 
       Raises:
-        RuntimeError: If ``key`` exists, but is of a different type (changing
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of a different type (changing
           the type is not supported); or if the parent path could not be
           created (*e.g.* if you requested to implicitly create an array).
       )doc";
@@ -265,7 +276,9 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           ``"section1.subgroup.my-int"``.
 
       Raises:
-        RuntimeError: If ``key`` does not exist.
+        :class:`~pyzeugkiste.config.KeyError`: If ``key`` does not exist.
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is not
+          an :class:`int` parameter (or cannot be converted to an :class:`int`).
       )doc";
   cfg.def("get_int", &ConfigWrapper::GetInteger64, doc_string.c_str(),
           pybind11::arg("key"));
@@ -303,7 +316,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         value: The value to be set.
 
       Raises:
-        RuntimeError: If ``key`` exists, but is of a different type (changing
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of a different type (changing
           the type is not supported); or if the parent path could not be
           created (*e.g.* if you requested to implicitly create an array).
       )doc";
@@ -321,7 +334,9 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           ``"section1.subgroup.my-flt"``.
 
       Raises:
-        RuntimeError: If ``key`` does not exist.
+        :class:`~pyzeugkiste.config.KeyError`: If ``key`` does not exist.
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is not
+          a :class:`float` parameter (or cannot be converted to a :class:`float`).
       )doc";
   cfg.def("get_float", &ConfigWrapper::GetDouble, doc_string.c_str(),
           pybind11::arg("key"));
@@ -355,7 +370,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         value: The value to be set.
 
       Raises:
-        RuntimeError: If ``key`` exists, but is of a different type (changing
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of a different type (changing
           the type is not supported); or if the parent path could not be
           created (*e.g.* if you requested to implicitly create an array).
       )doc";
@@ -373,7 +388,9 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           ``"section1.subgroup.my-str"``.
 
       Raises:
-        RuntimeError: If ``key`` does not exist.
+        :class:`~pyzeugkiste.config.KeyError`: If ``key`` does not exist.
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is not
+          a :class:`str` parameter.
       )doc";
   cfg.def("get_str", &ConfigWrapper::GetString, doc_string.c_str(),
           pybind11::arg("key"));
@@ -459,12 +476,12 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
 
           default:
             throw std::runtime_error(
-                "Other types (list, date, ...) are not yet implemented!");
+                "Accessing other types (list, groups, date, ...) is not yet "
+                "implemented!");
         }
         return pybind11::none();
       },
-      "Returns the value at the given key (fully-qualified parameter name).",
-      pybind11::arg("key"));
+      "Returns the parameter value.", pybind11::arg("key"));
   // TODO doc: currently, only scalars
   // type change is not supported
   cfg.def(
@@ -480,12 +497,15 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
         } else if (pybind11::isinstance<pybind11::float_>(value)) {
           GenericScalarSetterUtil(self, key, value.cast<double>());
         } else if (pybind11::isinstance<pybind11::list>(value)) {
+          // TODO implement - what about inhomogeneous lists?
           WZKLOG_ERROR("Input value for `{}` is a list - not yet supported",
                        key);
         } else if (pybind11::isinstance<pybind11::dict>(value)) {
+          // TODO raise error or convert to Configuration, then SetGroup!
           WZKLOG_ERROR("Input value for `{}` is a dict - not yet supported",
                        key);
         } else {
+          // TODO log and request bug report
           WZKLOG_ERROR(
               "Input value for `{}` is unknown - need to extend the type check",
               key);
@@ -495,118 +515,15 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
       pybind11::arg("value"));
 }
 
-inline void RegisterConfiguration(pybind11::module &m) {
-  const std::string module_name = m.attr("__name__").cast<std::string>();
-  const std::string config_name = std::string{module_name} + ".Configuration";
-
-  std::string doc_string{};
-  std::ostringstream doc_stream;
-  // doc_stream
-  //     << "TODO A :class:`~" << config_name << "`.\n\n"
-  //     << "**Corresponding C++ API:**
-  //     ``werkzeugkiste::config::Configuration``.";
-  // TODO extend documentation
-  doc_string = R"doc(
-    Encapsulates parameters.
-
-    This class provides dictionary-like access to parameters and
-    provides several additional utilities, such as replacing placeholders, adjusting
-    relative file paths, merging/nesting configurations, *etc.*
-
-    This utitility is intended for "typical" configuration scenarios. Thus,
-    it supports the following types:
-    * Boolean
-    * Integral and floating point numbers, *i.e.* :class:`int` and :class:`float`.
-    * Strings, *i.e.* :class:`str`
-    * Lists, *i.e.* :class:`list`
-    * Parameter groups (similar to :class:`dict`)
-
-    Type-checked access is provided via :meth:`get_int`, :meth:`get_str`,
-    *etc.* or allow default values if a *key* does not exist via
-    :meth:`get_int_or`, :meth:`get_float_or`, *etc.*
-    Parameters can be set via corresponding setters, such as :meth:`set_bool`.
-    For convenience, access is also supported via :meth:`__getitem__`
-    and :meth:`__setitem__`.
-
-    Implicit numeric casts will be performed if the value can be exactly
-    represented in the target type. For example, an :class:`int` value
-    ``42`` can be exactly represented as :class:`float`, whereas a
-    :class:`float` of `0.5` can't be exactly cast to an :class:`int`.
-    For the latter, a :class:`~pyzeugkiste.config.TypeError` will be raised.
-
-    .. code-block:: toml
-         :caption: Example
-
-         cfg = config.Configuration.load_toml_string("""
-             int = 23
-             flt = 1.5
-             str = "value"
-             bool = false
-             path = "/home/%USR%/work"
-             """)
-         cfg['flt']      # Returns a float
-         cfg['flt'] = 3  # Parameter is still a float
-
-         cfg['my-str'] = 'value'  # Creates a new string parameter
-         cfg.get_str('my_str')    # Alternative access
-
-         cfg.get_int_or('unknown', -1)  # Allow default value
-
-         cfg.replace_placeholders([('%USR%', 'whoami')])
-
-         print(cfg.to_toml_str())
-    )doc";
-
-  pybind11::class_<ConfigWrapper> cfg(m, "Configuration", doc_string.c_str());
-
-  cfg.def(pybind11::init<>(), "Creates an empty configuration.");
-
-  //---------------------------------------------------------------------------
-  // Loading a configuration
-  std::ostringstream().swap(doc_stream);
-  doc_stream << "Returns a :class:`~" << config_name
-             << "` loaded from the given TOML file.";
-
-  cfg.def_static("load_toml_file", &ConfigWrapper::LoadTOMLFile,
-                 doc_stream.str().c_str(), pybind11::arg("filename"));
-
-  std::ostringstream().swap(doc_stream);
-  doc_stream << "Returns a :class:`~" << config_name
-             << "` loaded from the given TOML string.";
-  cfg.def_static("load_toml_string", &ConfigWrapper::LoadTOMLString,
-                 doc_stream.str().c_str(), pybind11::arg("toml_str"));
-
-  //---------------------------------------------------------------------------
-  // Serializing
-  cfg.def("to_toml_str", &ConfigWrapper::ToTOMLString,
-          "Returns a formatted `TOML <https://toml.io/>`__ representation "
-          "of this configuration.");
-
-  cfg.def("to_json_str", &ConfigWrapper::ToJSONString,
-          "Returns a formatted `JSON <https://www.json.org/>`__ representation "
-          "of this configuration.");
-
-  //---------------------------------------------------------------------------
-  // Getter/Setter
-
-  RegisterScalarAccess(cfg);
-  RegisterGenericAccess(cfg);
-
-  // TODO size property
-
-  //---------------------------------------------------------------------------
-  // Getting/Setting lists/tuples/pairs
-  // TODO
-
-  //---------------------------------------------------------------------------
-  // Special utils
-  // TODO load nested, replace placeholders, adjust paths
-
-  doc_string = R"doc(
+inline void RegisterConfigUtilities(pybind11::class_<ConfigWrapper> &cfg) {
+  std::string doc_string = R"doc(
       Returns the fully-qualified names/keys of all parameters.
 
       The key defines the "path" from the configuration's root node
       to the parameter.
+
+      **Corresponding C++ API:**
+      ``werkzeugkiste::config::Configuration::ListParameterNames``.
 
       Args:
         include_array_entries: If ``True``, the name of each parameter will
@@ -686,11 +603,17 @@ inline void RegisterConfiguration(pybind11::module &m) {
         choose **unique placeholders** that are not contained in any other
         string parameter value or a replacement value.
 
+      **Corresponding C++ API:**
+      ``werkzeugkiste::config::Configuration::ReplaceStringPlaceholders``.
+
       Args:
         replacements: A :class:`list` of ``(search_str, replacement_str)``
           pairs, *i.e.* a :class:`tuple` of :class:`str`.
 
-      Return:
+      Raises:
+        :class:`RuntimeError`: If a provided *search_str* is empty.
+
+      Returns:
         ``True`` if any placeholder has actually been replaced.
 
       .. code-block:: toml
@@ -714,6 +637,181 @@ inline void RegisterConfiguration(pybind11::module &m) {
   cfg.def("replace_placeholders", &ConfigWrapper::ReplacePlaceholders,
           doc_string.c_str(), pybind11::arg("placeholders"));
 
+  doc_string = R"doc(
+      Loads a nested `TOML <https://toml.io/en/>`__ configuration.
+
+      For example, if the configuration had a field ``"storage"``, which
+      should be defined in a separate (*e.g.* machine-dependent) configuration
+      file, it could be defined in the main configuration simply
+      as ``storage = "path/to/conf.toml"``.
+
+      This function will then load the `TOML <https://toml.io/en/>`__
+      configuration and replace the ``storage`` parameter by the loaded
+      configuration. Suppose that ``path/to/conf.toml`` defines the parameters
+      ``location = ...`` and ``duration = ...``.
+      Then, after loading, these parameters can be accessed as
+      ``"storage.location"`` and ``"storage.duration"``, respectively.
+
+      **Corresponding C++ API:**
+      ``werkzeugkiste::config::Configuration::LoadNestedTOMLConfiguration``.
+
+      Raises:
+        :class:`~pyzeugkiste.config.ParseError` Upon parsing errors, such as
+          file not found, invalid syntax, *etc.*
+        :class:`~pyzeugkiste.config.TypeError` If the given parameter is
+          not a string.
+        :class:`RuntimeError` If the configuration could not be inserted. In
+          such cases, please file a bug report.
+
+      Args:
+        key: The fully-qualified parameter name which holds the file name
+          of the nested `TOML <https://toml.io/en/>`__ configuration (must
+          be of type string).
+      )doc";
+  cfg.def("load_nested_toml", &ConfigWrapper::LoadNestedTOML,
+          doc_string.c_str(), pybind11::arg("key"));
+
+  doc_string = R"doc(
+      Adjusts string parameters which hold relative file paths.
+
+      After invocation, the given parameters hold either an absolute file path,
+      or the concatenation result ``"base_path / <param>"`` if they initially
+      held a relative file path.
+
+      To check and adjust such paths, either the fully-qualified names
+      of all parameters can be provided, such as ``['file_path',
+      'storage.image_path', 'storage.doc_path', ...]``, or a pattern
+      which uses the wildcard ``'*'``.
+      For example, to adjust **all** parameters which names end with
+      the suffix ``_path`` as above, we could simply pass ``['*_path']``.
+
+      Args:
+        base_path: Base path to be prepended to relative file paths.
+        parameters: A list of parameter names or patterns.
+
+      Returns:
+        ``True`` if any parameter has been adjusted, ``False`` otherwise.
+
+      Raises:
+        :class:`~pyzeugkiste.config.TypeError`: If a parameter matches the
+          provided names/patterns, but is not a :class:`str` parameter.
+
+      .. code-block:: python
+         :caption: Example
+
+         from pyzeugkiste import config
+
+         cfg = config.Configuration.load_toml_string("""
+             file1 = 'rel/path/to/file'
+             file2 = '/absolute/path'
+             file3 = 'rel/path/to/another/file'
+
+             [output]
+             image_folder = 'output/imgs'
+             doc_folder = 'output/docs'
+             """)
+
+         cfg.adjust_relative_paths(
+             'abs-or-rel-path/to/my/workdir',
+             ['file*', 'output.*folder'])
+
+         print(cfg.to_toml_str())
+      )doc";
+  cfg.def("adjust_relative_paths", &ConfigWrapper::AdjustRelativePaths,
+          doc_string.c_str(), pybind11::arg("base_path"),
+          pybind11::arg("parameters"));
+}
+
+inline void RegisterConfiguration(pybind11::module &m) {
+  const std::string module_name = m.attr("__name__").cast<std::string>();
+  const std::string config_name = std::string{module_name} + ".Configuration";
+
+  std::string doc_string{};
+  std::ostringstream doc_stream;
+  doc_string = R"doc(
+    Encapsulates parameters.
+
+    This class provides dictionary-like access to parameters and
+    provides several additional utilities, such as replacing placeholders, adjusting
+    relative file paths, merging/nesting configurations, *etc.*
+
+    This utitility is intended for *"typical"* configuration scenarios. Thus,
+    it supports the following basic types: :class:`bool`, :class:`int`,
+    :class:`float`, and :class:`str`. As it uses `TOML <https://toml.io/en/>`__
+    under the hood, it also supports explicit date and time types.
+    Parameters can be combined into a :class:`list`, or into parameter
+    groups, which correspond to *tables* in `TOML <https://toml.io/en/>`__,
+    *groups* in `libconfig <http://hyperrealm.github.io/libconfig/>`__,
+    *objects* in `JSON <https://www.json.org/>`__ or :class:`dict` in python.
+
+    **Type-checked access** is provided via :meth:`get_int`, :meth:`get_str`,
+    *etc.* or allow default values if a *key* does not exist via
+    :meth:`get_int_or`, :meth:`get_float_or`, *etc.*
+    Parameters can be set via corresponding setters, such as :meth:`set_bool`.
+    For convenience, access is also supported via :meth:`__getitem__`
+    and :meth:`__setitem__`.
+
+    **Implicit numeric casts** will be performed if the value can be **exactly
+    represented** in the target type.
+    For example, an :class:`int` value 42 can be exactly represented by
+    a :class:`float`, whereas a :class:`float` of 0.5 can't be cast to
+    an :class:`int`. For the latter cast, a
+    :class:`~pyzeugkiste.config.TypeError` would be raised.
+
+    .. code-block:: python
+         :caption: Example
+
+         from pyzeugkiste import config
+
+         cfg = config.Configuration.load_toml_string("""
+             int = 23
+             flt = 1.5
+             str = "value"
+             bool = false
+
+             [replacements]
+             work_dir = "/home/%USR%/work"
+             output_file = "%OUT%/dump.bin"
+
+             [disk]
+             network_config = "configs/net.toml"
+             model_path = "models/latest.bin"
+             image_path = "images/"
+             """)
+
+         'str' in cfg    # Returns True
+
+         cfg['flt']      # Returns a float
+         cfg['flt'] = 3  # Parameter is still a float
+
+         cfg['my_str'] = 'value'  # Creates a new string parameter
+         cfg.get_str('my_str')    # Alternative access
+
+         cfg.get_int_or('unknown', -1)  # Allow default value
+
+         cfg['unknown']      # Raises a KeyError
+         cfg.get_int('str')  # Raises a TypeError
+
+         cfg.replace_placeholders([
+             ('%USR%', 'whoami'),
+             ('%OUT%', '/path/to/output')])
+
+         cfg.adjust_relative_paths(
+             '/path/to/workdir',
+             ['network_config', 'disk.*path'])
+
+         cfg.load_nested_toml('disk.network_config')
+         cfg['disk.network_config']  # Is now a group/dictionary
+
+         print(cfg.to_toml_str())
+    )doc";
+
+  pybind11::class_<ConfigWrapper> cfg(m, "Configuration", doc_string.c_str());
+
+  cfg.def(pybind11::init<>(), "Creates an empty configuration.");
+
+  //---------------------------------------------------------------------------
+  // General members/operators
   cfg.def("empty", &ConfigWrapper::Empty,
           "Checks if this configuration has any parameters set.");
 
@@ -728,63 +826,98 @@ inline void RegisterConfiguration(pybind11::module &m) {
       "values.",
       pybind11::arg("other"));
 
-  std::ostringstream().swap(doc_stream);
-  doc_stream << "Checks for inequality, see :meth:`~." << config_name
-             << ".__eq__` for details.";
   cfg.def(
       "__ne__",
       [](const ConfigWrapper &a, const ConfigWrapper &b) -> bool {
         return !a.Equals(b);
       },
-      doc_stream.str().c_str(), pybind11::arg("other"));
+      "Checks for inequality, see :meth:`__eq__` for details.",
+      pybind11::arg("other"));
 
   // TODO __str__ and __repr__, e.g. (x 1st level keys, y parameters in total)
   cfg.def("__str__",
-          [](const ConfigWrapper &c) {
-            //  std::ostringstream s;
+          [m](const ConfigWrapper &c) {
+            std::ostringstream s;
+            s << m.attr("__name__").cast<std::string>() << ".Configuration";
+            // TODO
+            return s.str();
             //  s << l;
             //  return s.str();
-            return "TODO(ConfigWrapper::ToString)";
+            // return "TODO(ConfigWrapper::ToString)";
           })
-      .def("__repr__", [](const ConfigWrapper &c) {
-        return "TODO(ConfigWrapper::ToRepr)";
-        // std::ostringstream s;
-        // s << '<' << l << '>';
-        // return s.str();
+      .def("__repr__", [m](const ConfigWrapper &c) {
+        std::ostringstream s;
+        s << m.attr("__name__").cast<std::string>() << ".Configuration()";
+        // TODO x parameters, ...
+        return s.str();
       });
 
   cfg.def("__contains__", &ConfigWrapper::Contains,
           "Checks if the given key (fully-qualified parameter name) exists.",
           pybind11::arg("key"));
 
-  // pybind11::register_exception_translator([](std::exception_ptr p) {
-  //       try {
-  //           if (p) {
-  //               std::rethrow_exception(p);
-  //           }
-  //       } catch (const wzkcfg::KeyError &e) {
-  //           PyErr_SetString(PyExc_KeyError, e.what());
-  //       } catch (const wzkcfg::TypeError &e) {
-  //         PyErr_SetString(PyExc_ValueError, e.what());
-  //       } catch (const wzkcfg::ParseError &e) {
-  //         PyErr_SetString(PyExc_RuntimeError, e.what());
-  //       }
-  //   });
+  // TODO size property
+
+  //---------------------------------------------------------------------------
+  // Loading a configuration
+  cfg.def_static(
+      "load_toml_file", &ConfigWrapper::LoadTOMLFile,
+      "Loads the configuration from a `TOML <https://toml.io/en/>`__ file.",
+      pybind11::arg("filename"));
+
+  cfg.def_static(
+      "load_toml_string", &ConfigWrapper::LoadTOMLString,
+      "Loads the configuration from a `TOML <https://toml.io/en/>`__ string.",
+      pybind11::arg("toml_str"));
+
+  //---------------------------------------------------------------------------
+  // Serializing
+  cfg.def("to_toml_str", &ConfigWrapper::ToTOMLString,
+          "Returns a formatted `TOML <https://toml.io/>`__ representation "
+          "of this configuration.");
+
+  cfg.def("to_json_str", &ConfigWrapper::ToJSONString,
+          "Returns a formatted `JSON <https://www.json.org/>`__ representation "
+          "of this configuration.");
+
+  //---------------------------------------------------------------------------
+  // Getter/Setter
+
+  RegisterScalarAccess(cfg);
+  RegisterGenericAccess(cfg);
+
+  // TODO date & time
+
+  //---------------------------------------------------------------------------
+  // Getting/Setting lists/tuples/pairs
+
+  // TODO lists
+  // TODO tuples/pairs/points
+  // TODO nested lists/numpy arrays (matrices)
+
+  //---------------------------------------------------------------------------
+  // Special utils
+  RegisterConfigUtilities(cfg);
+
+  //---------------------------------------------------------------------------
+  // Register exceptions
+  // The corresponding python module __init__ will override the __module__
+  // string of these exceptions. Otherwise, if raised they might confuse the
+  // user (due to the binding-internal module name "_core._cfg")
+
   pybind11::register_local_exception<wzkcfg::KeyError>(m, "KeyError",
                                                        PyExc_KeyError);
   pybind11::register_local_exception<wzkcfg::TypeError>(m, "TypeError",
                                                         PyExc_ValueError);
   pybind11::register_local_exception<wzkcfg::ParseError>(m, "ParseError",
                                                          PyExc_RuntimeError);
-  // TODO override, or else the stacktrace gets cluttered by the internal
-  // C++ module name, e.g. pyzeugkiste._core._cfg.KeyError
-  // m.attr("KeyError").attr("__qualname__") = "FIXME";
-  m.attr("KeyError").attr("__repr__") = pybind11::cpp_function(
-      [](const wzkcfg::KeyError &e) { return "TODO/KeyError"; },
-      pybind11::name("__repr__"), pybind11::is_method(m.attr("KeyError")));
-  // m.attr("ParseError").def("__repr__", [](const wzkcfg::ParseError &e) {
-  //   return "TODO/ParseError";
-  // });
+
+  m.attr("KeyError").attr("__doc__") =
+      "Raised if an invalid key was provided to access parameters.";
+  m.attr("TypeError").attr("__doc__") =
+      "Raised if an invalid type was used to get/set a parameter.";
+  m.attr("ParseError").attr("__doc__") =
+      "Raised if parsing a configuration string/file failed.";
 }
 }  // namespace werkzeugkiste::bindings
 

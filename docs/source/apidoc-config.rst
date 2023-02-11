@@ -13,12 +13,40 @@ Quickstart
 Documentation
 -------------
 
-There is only a single interface class in this submodule, *i.e.*
-:class:`~pyzeugkiste.config.Configuration`.
+.. autosummary::
+   :nosignatures:
+
+   pyzeugkiste.config.Configuration
+   pyzeugkiste.config.KeyError
+   pyzeugkiste.config.TypeError
+   pyzeugkiste.config.ParseError
+
+.............
+Configuration
+.............
 
 .. autoclass:: pyzeugkiste.config.Configuration
    :autosummary:
    :autosummary-nosignatures:
    :members:
 
-   
+........
+KeyError
+........
+
+.. autoclass:: pyzeugkiste.config.KeyError
+   :autosummary:
+
+.........
+TypeError
+.........
+
+.. autoclass:: pyzeugkiste.config.TypeError
+   :autosummary:
+
+..........
+ParseError
+..........
+
+.. autoclass:: pyzeugkiste.config.ParseError
+   :autosummary:
