@@ -16,7 +16,7 @@ PyZeugKiste - Another Box of Python Tools
 
 .. toctree::
    :caption: Contents
-   :maxdepth: 2
+   :maxdepth: 3
 
    Package installation <installation>
    Submodule config <apidoc-config>
