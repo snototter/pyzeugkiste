@@ -1,6 +1,9 @@
 #ifndef WERKZEUGKISTE_BINDINGS_CONFIG_H
 #define WERKZEUGKISTE_BINDINGS_CONFIG_H
 
+// TODO remove
+#define PYBIND11_DETAILED_ERROR_MESSAGES
+
 #include <pybind11/chrono.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
@@ -27,7 +30,7 @@ namespace wzkcfg = werkzeugkiste::config;
 
 from pyzeugkiste import config
 import datetime
-c = config.Configuration.load_toml_string("""
+c = config.load_toml_string("""
     day = 2022-12-01
     time = 08:30:00
     """)
@@ -55,7 +58,7 @@ print(c.to_toml_str())
 
 from pyzeugkiste import config
 
-c = config.Configuration.load_toml_string("""
+c = config.load_toml_str("""
     my-bool = true
     int = 1
     flt = 3.5
@@ -187,15 +190,15 @@ inline std::string PathStringFromPython(const pybind11::object &path) {
 
 class ConfigWrapper {
  public:
-  static ConfigWrapper LoadTOMLFile(std::string_view filename) {
+  static ConfigWrapper LoadTOMLFile(const pybind11::object &filename) {
     ConfigWrapper instance{};
-    instance.cfg_ = wzkcfg::Configuration::LoadTOMLFile(filename);
+    instance.cfg_ = wzkcfg::LoadTOMLFile(PathStringFromPython(filename));
     return instance;
   }
 
   static ConfigWrapper LoadTOMLString(std::string_view toml_str) {
     ConfigWrapper instance{};
-    instance.cfg_ = wzkcfg::Configuration::LoadTOMLString(toml_str);
+    instance.cfg_ = wzkcfg::LoadTOMLString(toml_str);
     return instance;
   }
 
@@ -719,6 +722,19 @@ void GenericScalarSetterUtil(ConfigWrapper &cfg, std::string_view key,
   }
 }
 
+template <typename T>
+T ExtractPythonNumber(const pybind11::object &obj, const std::string &err_msg) {
+  if (pybind11::isinstance<pybind11::int_>(obj)) {
+    return wzkcfg::CheckedCast<T>(obj.cast<int64_t>());
+  }
+
+  if (pybind11::isinstance<pybind11::float_>(obj)) {
+    return wzkcfg::CheckedCast<T>(obj.cast<double>());
+  }
+
+  throw wzkcfg::TypeError(err_msg);
+}
+
 inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
   // TODO doc
   cfg.def(
@@ -770,29 +786,47 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
       "__setitem__",
       [cfg](ConfigWrapper &self, std::string_view key,
             const pybind11::object &value) -> void {
+        const std::string tp = pybind11::cast<std::string>(
+            value.attr("__class__").attr("__name__"));
+
         if (self.Contains(key)) {
+          std::string err_msg{"Cannot use a python object of type `"};
+          err_msg += tp;
+          err_msg += "` to update existing parameter `";
+          err_msg += key;
+          err_msg += "`!";
+
           // Existing parameter defines which type to insert:
           switch (self.Type(key)) {
             case wzkcfg::ConfigType::Boolean:
-              GenericScalarSetterUtil<bool>(self, key, value.cast<bool>());
+              if (pybind11::isinstance<pybind11::bool_>(value)) {
+                GenericScalarSetterUtil<bool>(self, key, value.cast<bool>());
+                return;
+              }
               break;
 
             case wzkcfg::ConfigType::Integer:
-              GenericScalarSetterUtil<int64_t>(self, key,
-                                               value.cast<int64_t>());
-              break;
+              GenericScalarSetterUtil<int64_t>(
+                  self, key, ExtractPythonNumber<int64_t>(value, err_msg));
+              return;
 
             case wzkcfg::ConfigType::FloatingPoint:
-              GenericScalarSetterUtil<double>(self, key, value.cast<double>());
-              break;
+              GenericScalarSetterUtil<double>(
+                  self, key, ExtractPythonNumber<double>(value, err_msg));
+              return;
 
             case wzkcfg::ConfigType::String:
-              GenericScalarSetterUtil<std::string>(self, key,
-                                                   value.cast<std::string>());
+              if (pybind11::isinstance<pybind11::str>(value)) {
+                GenericScalarSetterUtil<std::string>(self, key,
+                                                     value.cast<std::string>());
+                return;
+              }
               break;
 
+              // TODO list
               // case wzkcfg::ConfigType::List:
 
+              // TODO group
               // case wzkcfg::ConfigType::Group: {
               //   pybind11::object obj = cfg();
               //   auto *ptr = obj.cast<ConfigWrapper *>();
@@ -804,17 +838,20 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
 
             case wzkcfg::ConfigType::Date:
               GenericScalarSetterUtil<wzkcfg::date>(self, key, value);
-              break;
+              return;
 
             case wzkcfg::ConfigType::Time:
               GenericScalarSetterUtil<wzkcfg::time>(self, key, value);
-              break;
+              return;
+
+              // TODO datetime
 
             default:
               throw std::runtime_error(
-                  "Accessing other types (list, groups, ...) is not yet "
-                  "implemented!");
+                  "Setting this type is not yet "
+                  "implemented!");  // TODO
           }
+          throw wzkcfg::TypeError(err_msg);
         } else {
           // Python type defines what kind of parameter to insert:
           if (pybind11::isinstance<pybind11::str>(value)) {
@@ -835,28 +872,25 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
             WZKLOG_ERROR("Input value for `{}` is a dict - not yet supported",
                          key);
           } else {
-            // TODO log and request bug report
-            const std::string tp = pybind11::cast<std::string>(
-                value.attr("__class__").attr("__name__"));
-
             if (tp.compare("date") == 0) {
               GenericScalarSetterUtil<wzkcfg::date>(self, key, value);
             } else if (tp.compare("time") == 0) {
               GenericScalarSetterUtil<wzkcfg::time>(self, key, value);
-            } else {
+            } else {  // TODO datetime
               std::string msg{"Creating a new parameter (at key `"};
               msg += key;
               msg += "`) from python type `";
               msg += tp;
               msg += "` is not yet supported!";
 
-              throw std::runtime_error(msg);
+              throw wzkcfg::TypeError(msg);
             }
           }
         }
       },
       "Sets the parameter value.", pybind11::arg("key"),
       pybind11::arg("value"));
+  // TODO docstr
 }
 
 inline void RegisterConfigUtilities(pybind11::class_<ConfigWrapper> &cfg) {
@@ -932,6 +966,7 @@ inline void RegisterConfigUtilities(pybind11::class_<ConfigWrapper> &cfg) {
          ]
 
       )doc";
+  // TODO rename to keys ? or add an alias ?
   cfg.def("list_parameter_names", &ConfigWrapper::ListParameterNames,
           doc_string.c_str(), pybind11::arg("include_array_entries") = false);
 
@@ -1046,7 +1081,7 @@ inline void RegisterConfigUtilities(pybind11::class_<ConfigWrapper> &cfg) {
 
          from pyzeugkiste import config
 
-         cfg = config.Configuration.load_toml_string("""
+         cfg = config.load_toml_str("""
              file1 = 'rel/path/to/file'
              file2 = '/absolute/path'
              file3 = 'rel/path/to/another/file'
@@ -1109,7 +1144,7 @@ inline void RegisterConfiguration(pybind11::module &m) {
 
          from pyzeugkiste import config
 
-         cfg = config.Configuration.load_toml_string("""
+         cfg = config.load_toml_str("""
              int = 23
              flt = 1.5
              str = "value"
@@ -1205,15 +1240,13 @@ inline void RegisterConfiguration(pybind11::module &m) {
 
   //---------------------------------------------------------------------------
   // Loading a configuration
-  cfg.def_static(
-      "load_toml_file", &detail::ConfigWrapper::LoadTOMLFile,
-      "Loads the configuration from a `TOML <https://toml.io/en/>`__ file.",
-      pybind11::arg("filename"));
+  m.def("load_toml_str", &detail::ConfigWrapper::LoadTOMLString,
+        "Loads the configuration from a `TOML <https://toml.io/en/>`__ string.",
+        pybind11::arg("toml_str"));
 
-  cfg.def_static(
-      "load_toml_string", &detail::ConfigWrapper::LoadTOMLString,
-      "Loads the configuration from a `TOML <https://toml.io/en/>`__ string.",
-      pybind11::arg("toml_str"));
+  m.def("load_toml_file", &detail::ConfigWrapper::LoadTOMLFile,
+        "Loads the configuration from a `TOML <https://toml.io/en/>`__ file.",
+        pybind11::arg("filename"));
 
   //---------------------------------------------------------------------------
   // Serializing
