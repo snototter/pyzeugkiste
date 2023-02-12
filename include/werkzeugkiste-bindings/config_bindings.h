@@ -611,7 +611,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
 
       Args:
         key: The fully-qualified parameter name, *e.g.*
-          ``"section1.my-str"``.
+          ``"scheduler.dates.day1"``.
         default_value: If the parameter does not exist, this value
           will be returned instead. See :meth:`set_date` for supported
           types/representations.
@@ -621,7 +621,62 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
 
   //---------------------------------------------------------------------------
   // Getting/setting scalars: time
-  // TODO add
+
+  doc_string = R"doc(
+      Changes or creates a :class:`datetime.time` parameter.
+
+      **Corresponding C++ API:**
+      ``werkzeugkiste::config::Configuration::SetTime``.
+
+      Args:
+        key: The fully-qualified parameter name, *e.g.*
+          ``"scheduler.startup_time"``.
+        value: The :class:`datetime.time` object to be set. Additionally,
+          the value can also be specified as a :class:`str` representation
+          in the format ``HH:MM``, ``HH:MM:SS``, ``HH:MM:SS.sss`` (milliseconds),
+          ``HH:MM:SS.ssssss`` (microseconds) or ``HH:MM:SS.sssssssss`` (nanoseconds).
+
+      Raises:
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of a different type (changing
+          the type is not supported); or if the parent path could not be
+          created (*e.g.* if you requested to implicitly create an array).
+      )doc";
+  cfg.def("set_time", &ConfigWrapper::SetTime, doc_string.c_str(),
+          pybind11::arg("key"), pybind11::arg("value"));
+
+  doc_string = R"doc(
+      Returns the :class:`datetime.time` parameter or raises an exception.
+
+      **Corresponding C++ API:**
+      ``werkzeugkiste::config::Configuration::GetTime``.
+
+      Args:
+        key: The fully-qualified parameter name, *e.g.*
+          ``"scheduler.startup_time"``.
+
+      Raises:
+        :class:`~pyzeugkiste.config.KeyError`: If ``key`` does not exist.
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is not
+          a :class:`datetime.time` parameter.
+      )doc";
+  cfg.def("get_time", &ConfigWrapper::GetTime, doc_string.c_str(),
+          pybind11::arg("key"));
+
+  doc_string = R"doc(
+      Returns an optional :class:`datetime.time` parameter or the default value.
+
+      **Corresponding C++ API:**
+      ``werkzeugkiste::config::Configuration::GetTimeOr``.
+
+      Args:
+        key: The fully-qualified parameter name, *e.g.*
+          ``"scheduler.startup_time"``.
+        default_value: If the parameter does not exist, this value
+          will be returned instead. See :meth:`set_time` for supported
+          types/representations.
+      )doc";
+  cfg.def("get_time_or", &ConfigWrapper::GetTimeOr, doc_string.c_str(),
+          pybind11::arg("key"), pybind11::arg("default_value"));
 }
 
 template <typename TSet, typename TIn>
@@ -789,9 +844,9 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
             } else if (tp.compare("time") == 0) {
               GenericScalarSetterUtil<wzkcfg::time>(self, key, value);
             } else {
-              std::string msg{"Setting key `"};
+              std::string msg{"Creating a new parameter (at key `"};
               msg += key;
-              msg += "` from python type `";
+              msg += "`) from python type `";
               msg += tp;
               msg += "` is not yet supported!";
 
@@ -1162,13 +1217,14 @@ inline void RegisterConfiguration(pybind11::module &m) {
 
   //---------------------------------------------------------------------------
   // Serializing
-  cfg.def("to_toml_str", &detail::ConfigWrapper::ToTOMLString,
-          "Returns a formatted `TOML <https://toml.io/>`__ representation "
+  cfg.def("to_toml", &detail::ConfigWrapper::ToTOMLString,
+          "Returns a `TOML <https://toml.io/>`__-formatted representation "
           "of this configuration.");
 
-  cfg.def("to_json_str", &detail::ConfigWrapper::ToJSONString,
-          "Returns a formatted `JSON <https://www.json.org/>`__ representation "
-          "of this configuration.");
+  cfg.def("to_json", &detail::ConfigWrapper::ToJSONString,
+          "Returns a `JSON <https://www.json.org/>`__-formatted representation "
+          "of this configuration.\n\nNote that date/time parameters will be "
+          "replaced by their string representation.");
 
   //---------------------------------------------------------------------------
   // Getter/Setter
@@ -1180,7 +1236,7 @@ inline void RegisterConfiguration(pybind11::module &m) {
   // Getting/Setting lists/tuples/pairs
 
   // TODO lists
-  // TODO tuples/pairs/points
+  // TODO tuples/pairs/points - not needed (?)
   // TODO nested lists/numpy arrays (matrices)
 
   //---------------------------------------------------------------------------
