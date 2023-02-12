@@ -1,6 +1,7 @@
 #ifndef WERKZEUGKISTE_BINDINGS_CONFIG_H
 #define WERKZEUGKISTE_BINDINGS_CONFIG_H
 
+#include <pybind11/chrono.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -22,6 +23,20 @@ namespace wzkcfg = werkzeugkiste::config;
 // https://pybind11.readthedocs.io/en/stable/advanced/exceptions.html
 
 /*
+from pyzeugkiste import config
+import datetime
+c = config.Configuration.load_toml_string("""
+    day = 2022-12-01
+    time = 08:30:00
+    """)
+c['day']
+c['time']
+
+c['day'] = datetime.date(2020, 10, 20)
+c['time'] = datetime.time(10, 8, 30)
+
+
+
 from pyzeugkiste import config
 
 c = config.Configuration.load_toml_string("""
@@ -76,6 +91,25 @@ c['foo'] = False # fail
 */
 
 namespace werkzeugkiste::bindings {
+
+inline pybind11::object DateToPython(const wzkcfg::date &d) {
+  auto pydatetime = pybind11::module::import("datetime");
+  return pydatetime.attr("date")(d.year, d.month, d.day);
+}
+
+inline pybind11::object TimeToPython(const wzkcfg::time &t) {
+  auto pydatetime = pybind11::module::import("datetime");
+  return pydatetime.attr("time")(t.hour, t.minute, t.second,
+                                 t.nanosecond / 1000);
+}
+
+inline std::string PathStringFromPython(const pybind11::object &path) {
+  if (pybind11::isinstance<pybind11::str>(path)) {
+    return path.cast<std::string>();
+  } else {
+    return pybind11::str(path).cast<std::string>();
+  }
+}
 
 class ConfigWrapper {
  public:
@@ -159,6 +193,20 @@ class ConfigWrapper {
     return cfg_.GetStringOr(key, default_value);
   }
 
+  pybind11::object GetDate(std::string_view key) const {
+    return DateToPython(cfg_.GetDate(key));
+  }
+
+  // TODO for set/get_or we need to convert date | time to cpp, too
+  // wzkcfg::date GetDateOr(std::string_view key) const {
+  //   return cfg_.GetDate(key);
+  // }
+  // void SetDate()
+
+  pybind11::object GetTime(std::string_view key) const {
+    return TimeToPython(cfg_.GetTime(key));
+  }
+
   // Special functions
   std::vector<std::string> ListParameterNames(
       bool include_array_entries) const {
@@ -175,9 +223,9 @@ class ConfigWrapper {
     cfg_.LoadNestedTOMLConfiguration(key);
   }
 
-  bool AdjustRelativePaths(std::string_view base_path,
+  bool AdjustRelativePaths(const pybind11::object &base_path,
                            const std::vector<std::string_view> &parameters) {
-    cfg_.AdjustRelativePaths(base_path, parameters);
+    cfg_.AdjustRelativePaths(PathStringFromPython(base_path), parameters);
   }
 
  private:
@@ -409,6 +457,29 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
       )doc";
   cfg.def("get_str_or", &ConfigWrapper::GetStringOr, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("default_value"));
+
+  //---------------------------------------------------------------------------
+  // Getting/setting scalars: date
+
+  // TODO get_or & set + time missing
+
+  doc_string = R"doc(
+      Returns the :class:`datetime.date` parameter or raises an exception.
+
+      **Corresponding C++ API:**
+      ``werkzeugkiste::config::Configuration::GetDate``.
+
+      Args:
+        key: The fully-qualified parameter name, *e.g.*
+          ``"scheduler.dates.day1"``.
+
+      Raises:
+        :class:`~pyzeugkiste.config.KeyError`: If ``key`` does not exist.
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is not
+          a :class:`datetime.date` parameter.
+      )doc";
+  cfg.def("get_date", &ConfigWrapper::GetDate, doc_string.c_str(),
+          pybind11::arg("key"));
 }
 
 template <typename T>
@@ -430,7 +501,7 @@ void GenericScalarSetterUtil(ConfigWrapper &cfg, std::string_view key,
       std::string msg{"Changing the type is not allowed. Parameter `"};
       msg += key;
       msg += "` is `";
-      msg += wzkcfg::ToString(expected);
+      msg += wzkcfg::ConfigTypeToString(expected);
       msg += "`, but input value is of type `";
       msg += wzkcfg::TypeName<T>();
       msg += "!";
@@ -474,6 +545,12 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
             // WZKLOG_CRITICAL("TODO not yet implemented!");
             // return pybind11::dict();
 
+          case wzkcfg::ConfigType::Date:
+            return self.GetDate(key);
+
+          case wzkcfg::ConfigType::Time:
+            return self.GetTime(key);
+
           default:
             throw std::runtime_error(
                 "Accessing other types (list, groups, date, ...) is not yet "
@@ -506,9 +583,32 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
                        key);
         } else {
           // TODO log and request bug report
-          WZKLOG_ERROR(
-              "Input value for `{}` is unknown - need to extend the type check",
-              key);
+          const std::string tp = pybind11::cast<std::string>(
+              value.attr("__class__").attr("__name__"));
+          std::string msg{"Setting key `"};
+          msg += key;
+          msg += "` from python type `";
+          msg += tp;
+          msg += "` is not yet supported!";
+
+          // We need to ensure that the PyDateTime import is initialized.
+          // Or prepare for segfaults.
+          if (!PyDateTimeAPI) {
+            PyDateTime_IMPORT;
+          }
+          if (PyDate_Check(value.ptr())) {
+            // If I understood the python & pybind11 docs correctly:
+            // https://github.com/pybind/pybind11/issues/1201
+            // https://docs.python.org/3/c-api/datetime.html
+            msg += " TODO this should be a datetime.date object!";
+          }
+          if (PyDateTime_Check(value.ptr())) {
+            msg += " TODO this should be a datetime.datetime object!";
+          }
+          if (PyTime_Check(value.ptr())) {
+            msg += " TODO this should be a datetime.time object!";
+          }
+          WZKLOG_ERROR(msg);
         }
       },
       "Sets the parameter value.", pybind11::arg("key"),
@@ -686,7 +786,8 @@ inline void RegisterConfigUtilities(pybind11::class_<ConfigWrapper> &cfg) {
       the suffix ``_path`` as above, we could simply pass ``['*_path']``.
 
       Args:
-        base_path: Base path to be prepended to relative file paths.
+        base_path: Base path to be prepended to relative file paths. Can either
+          be a :class:`str` or a :class:`pathlib.Path`.
         parameters: A list of parameter names or patterns.
 
       Returns:
@@ -918,6 +1019,18 @@ inline void RegisterConfiguration(pybind11::module &m) {
       "Raised if an invalid type was used to get/set a parameter.";
   m.attr("ParseError").attr("__doc__") =
       "Raised if parsing a configuration string/file failed.";
+
+  // // TODO remove
+  // m.def("dev", [m]() {
+  //   auto pydatetime = pybind11::module::import("datetime");
+  //   pybind11::object pydate = pydatetime.attr("date")(2023, 3, 1);
+
+  //   pybind11::object pytime = pydatetime.attr("time")(23, 49, 10, 123456);
+
+  //   return pybind11::make_tuple(pydate, pytime);
+  //   // import pyzeugkiste
+  //   // pyzeugkiste._core._cfg.dev()
+  // });
 }
 }  // namespace werkzeugkiste::bindings
 
