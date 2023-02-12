@@ -64,11 +64,11 @@ def test_representations():
         str = "value"
         bool = false
         """)
-    other = config.Configuration.load_toml_string(cfg.to_toml_str())
+    other = config.Configuration.load_toml_string(cfg.to_toml())
     assert cfg == other
 
     with pytest.raises(RuntimeError):
-        config.Configuration.load_toml_string(cfg.to_json_str())
+        config.Configuration.load_toml_string(cfg.to_json())
 
 
 def test_placeholders():
