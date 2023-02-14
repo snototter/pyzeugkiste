@@ -24,11 +24,6 @@ endif()
 if(NOT pyzeugkiste_VERSION)
   string(REGEX REPLACE "^.*([0-9]+\\.[0-9]+\\.[0-9]+).*$" "\\1"
                        pyzeugkiste_VERSION "${SKBUILD_PROJECT_VERSION}")
-
-  message(
-    STATUS
-      "SKBUILD_PROJECT_VERSION is '${SKBUILD_PROJECT_VERSION}', pyzeugkiste_VERSION after regex is '${pyzeugkiste_VERSION}'"
-  )
 endif()
 
 # If we don't have a version string, we omit the VERSION keyword to avoid the
