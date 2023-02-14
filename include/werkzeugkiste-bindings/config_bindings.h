@@ -697,9 +697,9 @@ void GenericScalarSetterUtil(ConfigWrapper &cfg, std::string_view key,
     const auto expected = cfg.Contains(key) ? cfg.Type(key) : value_type;
 
     if (expected == wzkcfg::ConfigType::Integer) {
-      cfg.SetInteger64(key, wzkcfg::CheckedCast<int64_t>(value));
+      cfg.SetInteger64(key, wzkcfg::checked_numcast<int64_t>(value));
     } else if (expected == wzkcfg::ConfigType::FloatingPoint) {
-      cfg.SetDouble(key, wzkcfg::CheckedCast<double>(value));
+      cfg.SetDouble(key, wzkcfg::checked_numcast<double>(value));
     } else {
       std::string msg{"Changing the type is not allowed. Parameter `"};
       msg += key;
@@ -725,11 +725,11 @@ void GenericScalarSetterUtil(ConfigWrapper &cfg, std::string_view key,
 template <typename T>
 T ExtractPythonNumber(const pybind11::object &obj, const std::string &err_msg) {
   if (pybind11::isinstance<pybind11::int_>(obj)) {
-    return wzkcfg::CheckedCast<T>(obj.cast<int64_t>());
+    return wzkcfg::checked_numcast<T>(obj.cast<int64_t>());
   }
 
   if (pybind11::isinstance<pybind11::float_>(obj)) {
-    return wzkcfg::CheckedCast<T>(obj.cast<double>());
+    return wzkcfg::checked_numcast<T>(obj.cast<double>());
   }
 
   throw wzkcfg::TypeError(err_msg);
