@@ -521,9 +521,10 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         value: The value to be set.
 
       Raises:
-        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of a different type (changing
-          the type is not supported); or if the parent path could not be
-          created (*e.g.* if you requested to implicitly create an array).
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of
+          a different type (changing the type is not supported); or if the
+          parent path could not be created (*e.g.* if you requested to
+          implicitly create an array).
       )doc";
   cfg.def("set_int", &ConfigWrapper::SetInteger64, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("value"));
@@ -562,6 +563,10 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           ``"section1.my-integer"``.
         default_value: If the parameter does not exist, this value
           will be returned instead.
+
+      Raises:
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is not
+          an :class:`int` parameter.
       )doc";
   cfg.def("get_int_or", &ConfigWrapper::GetInteger64Or, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("default_value"));
@@ -580,9 +585,10 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         value: The value to be set.
 
       Raises:
-        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of a different type (changing
-          the type is not supported); or if the parent path could not be
-          created (*e.g.* if you requested to implicitly create an array).
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of
+          a different type (changing the type is not supported); or if the
+          parent path could not be created (*e.g.* if you requested to
+          implicitly create an array).
       )doc";
   cfg.def("set_float", &ConfigWrapper::SetDouble, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("value"));
@@ -616,6 +622,10 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           ``"section1.my-floating-point-number"``.
         default_value: If the parameter does not exist, this value
           will be returned instead.
+
+      Raises:
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is not
+          a :class:`float` parameter.
       )doc";
   cfg.def("get_float_or", &ConfigWrapper::GetDoubleOr, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("default_value"));
@@ -634,9 +644,10 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         value: The value to be set.
 
       Raises:
-        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of a different type (changing
-          the type is not supported); or if the parent path could not be
-          created (*e.g.* if you requested to implicitly create an array).
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of
+          a different type (changing the type is not supported); or if the
+          parent path could not be created (*e.g.* if you requested to
+          implicitly create an array).
       )doc";
   cfg.def("set_str", &ConfigWrapper::SetString, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("value"));
@@ -670,6 +681,10 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           ``"section1.my-str"``.
         default_value: If the parameter does not exist, this value
           will be returned instead.
+
+      Raises:
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is not
+          a :class:`str` parameter.
       )doc";
   cfg.def("get_str_or", &ConfigWrapper::GetStringOr, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("default_value"));
@@ -690,9 +705,10 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           in the format ``Y-m-d`` or ``d.m.Y``.
 
       Raises:
-        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of a different type (changing
-          the type is not supported); or if the parent path could not be
-          created (*e.g.* if you requested to implicitly create an array).
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of
+          a different type (changing the type is not supported); or if the
+          parent path could not be created (*e.g.* if you requested to
+          implicitly create an array).
       )doc";
   cfg.def("set_date", &ConfigWrapper::SetDate, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("value"));
@@ -727,6 +743,10 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         default_value: If the parameter does not exist, this value
           will be returned instead. See :meth:`set_date` for supported
           types/representations.
+
+      Raises:
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is not
+          a :class:`datetime.date` parameter.
       )doc";
   cfg.def("get_date_or", &ConfigWrapper::GetDateOr, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("default_value"));
@@ -749,9 +769,10 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           ``HH:MM:SS.ssssss`` (microseconds) or ``HH:MM:SS.sssssssss`` (nanoseconds).
 
       Raises:
-        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of a different type (changing
-          the type is not supported); or if the parent path could not be
-          created (*e.g.* if you requested to implicitly create an array).
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of
+          a different type (changing the type is not supported); or if the
+          parent path could not be created (*e.g.* if you requested to
+          implicitly create an array).
       )doc";
   cfg.def("set_time", &ConfigWrapper::SetTime, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("value"));
@@ -786,6 +807,10 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         default_value: If the parameter does not exist, this value
           will be returned instead. See :meth:`set_time` for supported
           types/representations.
+
+      Raises:
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is not
+          a :class:`datetime.time` parameter.
       )doc";
   cfg.def("get_time_or", &ConfigWrapper::GetTimeOr, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("default_value"));
@@ -812,41 +837,45 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           path could not be created (*e.g.* if you requested to implicitly
           create an array).
       )doc";
-  cfg.def("set_time", &ConfigWrapper::SetTime, doc_string.c_str(),
+  cfg.def("set_datetime", &ConfigWrapper::SetDateTime, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("value"));
 
   doc_string = R"doc(
-      Returns the :class:`datetime.time` parameter or raises an exception.
+      Returns the :class:`datetime.datetime` parameter or raises an exception.
 
       **Corresponding C++ API:**
-      ``werkzeugkiste::config::Configuration::GetTime``.
+      ``werkzeugkiste::config::Configuration::GetDateTime``.
 
       Args:
         key: The fully-qualified parameter name, *e.g.*
-          ``"scheduler.startup_time"``.
+          ``"scheduler.next_run"``.
 
       Raises:
         :class:`~pyzeugkiste.config.KeyError`: If ``key`` does not exist.
         :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is not
-          a :class:`datetime.time` parameter.
+          a :class:`datetime.datetime` parameter.
       )doc";
-  cfg.def("get_time", &ConfigWrapper::GetTime, doc_string.c_str(),
+  cfg.def("get_datetime", &ConfigWrapper::GetDateTime, doc_string.c_str(),
           pybind11::arg("key"));
 
   doc_string = R"doc(
-      Returns an optional :class:`datetime.time` parameter or the default value.
+      Returns an optional :class:`datetime.datetime` parameter or the default value.
 
       **Corresponding C++ API:**
-      ``werkzeugkiste::config::Configuration::GetTimeOr``.
+      ``werkzeugkiste::config::Configuration::GetDateTimeOr``.
 
       Args:
         key: The fully-qualified parameter name, *e.g.*
-          ``"scheduler.startup_time"``.
+          ``"scheduler.next_run"``.
         default_value: If the parameter does not exist, this value
           will be returned instead. See :meth:`set_time` for supported
           types/representations.
+
+      Raises:
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is not
+          a :class:`datetime.datetime` parameter.
       )doc";
-  cfg.def("get_time_or", &ConfigWrapper::GetTimeOr, doc_string.c_str(),
+  cfg.def("get_datetime_or", &ConfigWrapper::GetDateTimeOr, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("default_value"));
 }
 

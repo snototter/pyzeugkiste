@@ -7,10 +7,10 @@ import datetime
 from pathlib import Path
 from pyzeugkiste import config as pyc
 
-# TODO Tests missing, e.g. list_parameter_names, lead_nested_toml, ...
 
 def data():
     return Path(__file__).parent.resolve() / 'data'
+
 
 def test_io_toml():
     with pytest.raises(pyc.ParseError):
@@ -182,10 +182,22 @@ def test_integer():
     assert pytest.approx(3) == cfg['flt1']
     assert isinstance(cfg['flt1'], float)  # But the type is not changed
 
-    # TODO enable test as soon as wzk supports checked_cast inside Set<Int/Double>
-    # cfg.set_int('flt2', -1)
-    # assert pytest.approx(-1) == cfg['flt2']
-    # assert isinstance(cfg['flt2'], float)
+    # We also cannot change a numeric type:
+    with pytest.raises(pyc.TypeError):
+        cfg.set_int('flt2', -1)
+
+    with pytest.raises(pyc.TypeError):
+        cfg.set_float('my-int1', 42)
+
+    # But it can be set if the value is exactly representable:
+    cfg['flt2'] = int(-1)
+    assert pytest.approx(-1) == cfg['flt2']
+    assert isinstance(cfg['flt2'], float)
+
+    cfg['my-int1'] = float(42)
+    assert 42 == cfg['my-int1']
+    assert isinstance(cfg['my-int1'], int)
+
 
 def test_floating_point():
     cfg = pyc.load_toml_str("""
@@ -273,10 +285,9 @@ def test_floating_point():
     assert math.isinf(cfg['flt1'])
     assert cfg['flt1'] > 0
 
-# TODO test str
-# TODO test date
-# TODO test time
-# TODO test date_time
+# TODO test_str
+# TODO test_date
+# TODO test_time
 
 def test_datetime():
     cfg = pyc.load_toml_str("""
@@ -285,6 +296,7 @@ def test_datetime():
         dt1 = 2000-02-29T17:30:15.123
         dt2 = 2000-02-29T17:30:15.123-12:00
         """)
+    # Querying a date/time/datetime
     day = datetime.date(2022, 12, 1)
     assert cfg['day'] == day
     assert cfg.get_date('day') == day
@@ -296,20 +308,39 @@ def test_datetime():
     dt = datetime.datetime(2000, 2, 29, 17, 30, 15, 123000)
     assert isinstance(cfg['dt1'], datetime.datetime)
     assert cfg['dt1'] == dt
-#TODO    assert cfg.get_datetime('dt1') == dt
+    assert cfg.get_datetime('dt1') == dt
     assert cfg['dt1'].tzinfo is None
 
+    with pytest.raises(pyc.KeyError):
+        cfg.get_datetime('no-such-key')
+    assert cfg.get_datetime_or('no-such-key', dt) == dt
+
+    # A date/time cannot be implicitly converted to a datetime
+    with pytest.raises(pyc.TypeError):
+        cfg.get_datetime('day')
+    with pytest.raises(pyc.TypeError):
+        cfg.get_datetime_or('time', dt)
+
+    # pyzeugkiste doesn't know the timezone, only the offset. Thus, the
+    # datetime object will be adjusted to UTC time, if an offset has been
+    # specified
+    assert cfg['dt1'].tzinfo is None
+    assert cfg['dt2'].tzinfo is not None
+    assert cfg['dt2'].utcoffset().total_seconds() == 0
+
+    # TODO test time offsets
+
+    # Setting a datetime
     with pytest.raises(pyc.TypeError):
         cfg['dt1'] = day
     with pytest.raises(pyc.TypeError):
         cfg['dt1'] = tm
 
-    # TODO test time offset
-    assert cfg['dt2'].tzinfo is not None
 
 # TODO test keys/parameter_names
 # TODO test adjust paths
 # TODO test placeholders
+# TODO test loading nested TOML
 
 # def test_placeholders():
 #     cfg = config.Configuration.load_toml_string("""
