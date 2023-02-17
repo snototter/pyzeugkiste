@@ -1,9 +1,6 @@
 #ifndef WERKZEUGKISTE_BINDINGS_CONFIG_H
 #define WERKZEUGKISTE_BINDINGS_CONFIG_H
 
-// TODO remove
-#define PYBIND11_DETAILED_ERROR_MESSAGES
-
 #include <pybind11/chrono.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
@@ -21,16 +18,12 @@
 
 namespace wzkcfg = werkzeugkiste::config;
 
-// TODO nice-to-have: custom C++ exceptions in werkzeugkiste + mapping
-// to python exceptions, similar to
-// https://pybind11.readthedocs.io/en/stable/advanced/exceptions.html
-
 /*
 # TODO: make test suite:
 
 from pyzeugkiste import config
 import datetime
-c = config.load_toml_string("""
+c = config.load_toml_str("""
     day = 2022-12-01
     time = 08:30:00
     """)
@@ -50,6 +43,22 @@ c['time'] = now.time()
 c['not-yet-supported'] = now
 c['day']
 c['time']
+c['dt'] = now  # should work
+
+import pytz
+now_utc = now.astimezone(pytz.utc)
+
+c['utc'] = now_utc
+c['utc']
+
+now_est = now.astimezone(pytz.timezone('EST'))
+c['est'] = now_est
+c['est']
+assert c['est'] == c['utc']
+
+assert str(c['est']) != str(now_est)
+assert c['est'] == now_est
+
 
 c['a'] = now.date()
 c['b'] = now.time()
@@ -107,13 +116,36 @@ c['foo'] = 10
 c['foo']
 c['foo'] = False # fail
 
+now.utcoffset() -> None
+now_utc.utcoffset() -> timedelta
+
 */
 
 namespace werkzeugkiste::bindings {
 namespace detail {
-inline wzkcfg::date PythonToDate(const pybind11::object &obj) {
+inline wzkcfg::date PyObjToDateUnchecked(const pybind11::object &obj) {
+  const int year = obj.attr("year").cast<int>();
+  const int month = obj.attr("month").cast<int>();
+  const int day = obj.attr("day").cast<int>();
+  return wzkcfg::date{static_cast<uint_fast16_t>(year),
+                      static_cast<uint_fast8_t>(month),
+                      static_cast<uint_fast8_t>(day)};
+}
+
+inline wzkcfg::time PyObjToTimeUnchecked(const pybind11::object &obj) {
+  const int hour = obj.attr("hour").cast<int>();
+  const int minute = obj.attr("minute").cast<int>();
+  const int second = obj.attr("second").cast<int>();
+  const int microsec = obj.attr("microsecond").cast<int>();
+  return wzkcfg::time{static_cast<uint_fast8_t>(hour),
+                      static_cast<uint_fast8_t>(minute),
+                      static_cast<uint_fast8_t>(second),
+                      static_cast<uint_fast32_t>(microsec * 1000)};
+}
+
+inline wzkcfg::date PyObjToDate(const pybind11::object &obj) {
   if (pybind11::isinstance<pybind11::str>(obj)) {
-    return wzkcfg::date::FromString(obj.cast<std::string>());
+    return wzkcfg::date{obj.cast<std::string>()};
   }
 
   // We need to ensure that the PyDateTime import is initialized.
@@ -124,11 +156,7 @@ inline wzkcfg::date PythonToDate(const pybind11::object &obj) {
 
   if (PyDate_CheckExact(obj.ptr())) {  // || PyDateTime_Check(obj.ptr())) {
     // Object is datetime.date
-    const int year = obj.attr("year").cast<int>();
-    const int month = obj.attr("month").cast<int>();
-    const int day = obj.attr("day").cast<int>();
-    return wzkcfg::date{static_cast<uint16_t>(year),
-                        static_cast<uint8_t>(month), static_cast<uint8_t>(day)};
+    return PyObjToDateUnchecked(obj);
   }
 
   const std::string tp =
@@ -136,12 +164,12 @@ inline wzkcfg::date PythonToDate(const pybind11::object &obj) {
   std::string msg{"Cannot convert python type `"};
   msg += tp;
   msg += "` to `werkzeugkiste::date`!";
-  throw std::runtime_error(msg);
+  throw wzkcfg::TypeError(msg);
 }
 
-inline wzkcfg::time PythonToTime(const pybind11::object &obj) {
+inline wzkcfg::time PyObjToTime(const pybind11::object &obj) {
   if (pybind11::isinstance<pybind11::str>(obj)) {
-    return wzkcfg::time::FromString(obj.cast<std::string>());
+    return wzkcfg::time{obj.cast<std::string>()};
   }
 
   // We need to ensure that the PyDateTime import is initialized.
@@ -152,13 +180,7 @@ inline wzkcfg::time PythonToTime(const pybind11::object &obj) {
 
   if (PyTime_CheckExact(obj.ptr())) {  // || PyDateTime_Check(obj.ptr())) {
     // Object is datetime.time
-    const int hour = obj.attr("hour").cast<int>();
-    const int minute = obj.attr("minute").cast<int>();
-    const int second = obj.attr("second").cast<int>();
-    const int microsec = obj.attr("microsecond").cast<int>();
-    return wzkcfg::time{
-        static_cast<uint8_t>(hour), static_cast<uint8_t>(minute),
-        static_cast<uint8_t>(second), static_cast<uint32_t>(microsec * 1000)};
+    return PyObjToTimeUnchecked(obj);
   }
 
   const std::string tp =
@@ -166,18 +188,84 @@ inline wzkcfg::time PythonToTime(const pybind11::object &obj) {
   std::string msg{"Cannot convert python type `"};
   msg += tp;
   msg += "` to `werkzeugkiste::time`!";
-  throw std::runtime_error(msg);
+  throw wzkcfg::TypeError(msg);
 }
 
-inline pybind11::object DateToPython(const wzkcfg::date &d) {
+inline wzkcfg::date_time PyObjToDateTime(const pybind11::object &obj) {
+  if (pybind11::isinstance<pybind11::str>(obj)) {
+    return wzkcfg::date_time{obj.cast<std::string>()};
+  }
+
+  // We need to ensure that the PyDateTime import is initialized.
+  // Or prepare for segfaults.
+  if (!PyDateTimeAPI) {
+    PyDateTime_IMPORT;
+  }
+
+  if (PyDateTime_Check(obj.ptr())) {
+    // Object is datetime.datetime or subtype
+    const wzkcfg::date d = PyObjToDateUnchecked(obj);
+    const wzkcfg::time t = PyObjToTimeUnchecked(obj);
+
+    if (obj.attr("tzinfo").is_none()) {
+      WZKLOG_INFO("No time zone set!");  // TODO remove
+      return wzkcfg::date_time{d, t};
+    } else {
+      WZKLOG_WARN("Time zone is set, need to convert to UTC!");
+      // Option 1
+      const auto pyoffset_sec = obj.attr("utcoffset")().attr("total_seconds")();
+      const auto offset_min =
+          static_cast<int_fast16_t>(pyoffset_sec.cast<double>() / 60.0);
+      WZKLOG_WARN("TODO opt1 utcoffset is {}", offset_min);
+
+      // Option 2
+      auto pytz = pybind11::module::import("pytz");
+      const auto pyutc = obj.attr("astimezone")(pytz.attr("utc"));
+      WZKLOG_WARN("TODO opt2 pyobj in utc: {}", pyutc);
+
+      return wzkcfg::date_time{d, t, wzkcfg::time_offset{offset_min}};
+    }
+  }
+
+  const std::string tp =
+      pybind11::cast<std::string>(obj.attr("__class__").attr("__name__"));
+  std::string msg{"Cannot convert python type `"};
+  msg += tp;
+  msg += "` to `werkzeugkiste::date_time`!";
+  throw wzkcfg::TypeError(msg);
+}
+
+inline pybind11::object DateToPyObj(const wzkcfg::date &d) {
   auto pydatetime = pybind11::module::import("datetime");
   return pydatetime.attr("date")(d.year, d.month, d.day);
 }
 
-inline pybind11::object TimeToPython(const wzkcfg::time &t) {
+inline pybind11::object TimeToPyObj(const wzkcfg::time &t) {
   auto pydatetime = pybind11::module::import("datetime");
   return pydatetime.attr("time")(t.hour, t.minute, t.second,
                                  t.nanosecond / 1000);
+}
+
+inline pybind11::object DateTimeToPyObj(const wzkcfg::date_time &dt) {
+  // TODO docstr -> returned datetime will be in UTC+00:00 !!!
+  // datetime(year, month, day[, hour[, minute[, second[,
+  // microsecond[,tzinfo]]]]])
+  //  |
+  //  |  The year, month and day arguments are required. tzinfo may be None, or
+  //  an |  instance of a tzinfo subclass. The remaining arguments may be ints.
+  auto pydatetime = pybind11::module::import("datetime");
+  if (dt.IsLocal()) {
+    return pydatetime.attr("datetime")(
+        dt.date.year, dt.date.month, dt.date.day, dt.time.hour, dt.time.minute,
+        dt.time.second, dt.time.nanosecond / 1000);
+  } else {  // NOLINT
+    auto pytz = pybind11::module::import("pytz");
+    const wzkcfg::date_time utc = dt.UTC();
+    return pydatetime.attr("datetime")(
+        utc.date.year, utc.date.month, utc.date.day, utc.time.hour,
+        utc.time.minute, utc.time.second, utc.time.nanosecond / 1000,
+        pytz.attr("utc"));
+  }
 }
 
 inline std::string PathStringFromPython(const pybind11::object &path) {
@@ -282,35 +370,55 @@ class ConfigWrapper {
   //---------------------------------------------------------------------------
   // Date
 
-  void SetDate(std::string_view key, const wzkcfg::date &value) {
-    cfg_.SetDate(key, value);
+  void SetDate(std::string_view key, const pybind11::object &value) {
+    const wzkcfg::date d = PyObjToDate(value);
+    cfg_.SetDate(key, d);
   }
 
   pybind11::object GetDate(std::string_view key) const {
-    return DateToPython(cfg_.GetDate(key));
+    return DateToPyObj(cfg_.GetDate(key));
   }
 
   pybind11::object GetDateOr(std::string_view key,
                              const pybind11::object &default_value) const {
-    wzkcfg::date dt = PythonToDate(default_value);
-    return DateToPython(cfg_.GetDateOr(key, dt));
+    const wzkcfg::date d = PyObjToDate(default_value);
+    return DateToPyObj(cfg_.GetDateOr(key, d));
   }
 
   //---------------------------------------------------------------------------
   // Time
 
-  void SetTime(std::string_view key, const wzkcfg::time &value) {
-    cfg_.SetTime(key, value);
+  void SetTime(std::string_view key, const pybind11::object &value) {
+    const wzkcfg::time t = PyObjToTime(value);
+    cfg_.SetTime(key, t);
   }
 
   pybind11::object GetTime(std::string_view key) const {
-    return TimeToPython(cfg_.GetTime(key));
+    return TimeToPyObj(cfg_.GetTime(key));
   }
 
   pybind11::object GetTimeOr(std::string_view key,
                              const pybind11::object &default_value) const {
-    wzkcfg::time t = PythonToTime(default_value);
-    return TimeToPython(cfg_.GetTimeOr(key, t));
+    const wzkcfg::time t = PyObjToTime(default_value);
+    return TimeToPyObj(cfg_.GetTimeOr(key, t));
+  }
+
+  //---------------------------------------------------------------------------
+  // DateTime
+
+  void SetDateTime(std::string_view key, const pybind11::object &value) {
+    const wzkcfg::date_time dt = PyObjToDateTime(value);
+    cfg_.SetDateTime(key, dt);
+  }
+
+  pybind11::object GetDateTime(std::string_view key) const {
+    return DateTimeToPyObj(cfg_.GetDateTime(key));
+  }
+
+  pybind11::object GetDateTimeOr(std::string_view key,
+                                 const pybind11::object &default_value) const {
+    const wzkcfg::date_time dt = PyObjToDateTime(default_value);
+    return DateTimeToPyObj(cfg_.GetDateTimeOr(key, dt));
   }
 
   //---------------------------------------------------------------------------
@@ -354,9 +462,10 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         value: The value to be set.
 
       Raises:
-        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of a different type (changing
-          the type is not supported); or if the parent path could not be
-          created (*e.g.* if you requested to implicitly create an array).
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of a
+          different type (changing the type is not supported); or if the parent
+          path could not be created (*e.g.* if you requested to implicitly
+          create an array).
       )doc";
   cfg.def("set_bool", &ConfigWrapper::SetBoolean, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("value"));
@@ -680,6 +789,65 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
       )doc";
   cfg.def("get_time_or", &ConfigWrapper::GetTimeOr, doc_string.c_str(),
           pybind11::arg("key"), pybind11::arg("default_value"));
+
+  //---------------------------------------------------------------------------
+  // Getting/setting scalars: datetime
+
+  doc_string = R"doc(
+      Changes or creates a :class:`datetime.datetime` parameter.
+
+      **Corresponding C++ API:**
+      ``werkzeugkiste::config::Configuration::SetDateTime``.
+
+      Args:
+        key: The fully-qualified parameter name, *e.g.*
+          ``"scheduler.startup_time"``.
+        value: The :class:`datetime.datetime` object to be set. Additionally,
+          the value can also be specified as a :class:`str` representation
+          in the `RFC 3339 <https://www.rfc-editor.org/rfc/rfc3339>`__ format.
+
+      Raises:
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of a
+          different type (changing the type is not supported); or if the parent
+          path could not be created (*e.g.* if you requested to implicitly
+          create an array).
+      )doc";
+  cfg.def("set_time", &ConfigWrapper::SetTime, doc_string.c_str(),
+          pybind11::arg("key"), pybind11::arg("value"));
+
+  doc_string = R"doc(
+      Returns the :class:`datetime.time` parameter or raises an exception.
+
+      **Corresponding C++ API:**
+      ``werkzeugkiste::config::Configuration::GetTime``.
+
+      Args:
+        key: The fully-qualified parameter name, *e.g.*
+          ``"scheduler.startup_time"``.
+
+      Raises:
+        :class:`~pyzeugkiste.config.KeyError`: If ``key`` does not exist.
+        :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is not
+          a :class:`datetime.time` parameter.
+      )doc";
+  cfg.def("get_time", &ConfigWrapper::GetTime, doc_string.c_str(),
+          pybind11::arg("key"));
+
+  doc_string = R"doc(
+      Returns an optional :class:`datetime.time` parameter or the default value.
+
+      **Corresponding C++ API:**
+      ``werkzeugkiste::config::Configuration::GetTimeOr``.
+
+      Args:
+        key: The fully-qualified parameter name, *e.g.*
+          ``"scheduler.startup_time"``.
+        default_value: If the parameter does not exist, this value
+          will be returned instead. See :meth:`set_time` for supported
+          types/representations.
+      )doc";
+  cfg.def("get_time_or", &ConfigWrapper::GetTimeOr, doc_string.c_str(),
+          pybind11::arg("key"), pybind11::arg("default_value"));
 }
 
 template <typename TSet, typename TIn>
@@ -714,11 +882,14 @@ void GenericScalarSetterUtil(ConfigWrapper &cfg, std::string_view key,
     static_assert(std::is_same_v<TIn, std::string>);
     cfg.SetString(key, value);
   } else if constexpr (std::is_same_v<TSet, wzkcfg::date>) {
-    cfg.SetDate(key, PythonToDate(value));
+    cfg.SetDate(key, value);
   } else if constexpr (std::is_same_v<TSet, wzkcfg::time>) {
-    cfg.SetTime(key, PythonToTime(value));
+    cfg.SetTime(key, value);
+  } else if constexpr (std::is_same_v<TSet, wzkcfg::date_time>) {
+    cfg.SetDateTime(key, value);
   } else {
-    throw std::runtime_error("Setting this type is not yet supported!");
+    throw std::runtime_error(
+        "Setting this type is not yet supported!");  // TODO
   }
 }
 
@@ -772,7 +943,11 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
           case wzkcfg::ConfigType::Time:
             return self.GetTime(key);
 
+          case wzkcfg::ConfigType::DateTime:
+            return self.GetDateTime(key);
+
           default:
+            // TODO
             throw std::runtime_error(
                 "Accessing other types (list, groups, date, ...) is not yet "
                 "implemented!");
@@ -844,12 +1019,9 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
               GenericScalarSetterUtil<wzkcfg::time>(self, key, value);
               return;
 
-              // TODO datetime
-
-            default:
-              throw std::runtime_error(
-                  "Setting this type is not yet "
-                  "implemented!");  // TODO
+            case wzkcfg::ConfigType::DateTime:
+              GenericScalarSetterUtil<wzkcfg::date_time>(self, key, value);
+              return;
           }
           throw wzkcfg::TypeError(err_msg);
         } else {
@@ -876,7 +1048,9 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
               GenericScalarSetterUtil<wzkcfg::date>(self, key, value);
             } else if (tp.compare("time") == 0) {
               GenericScalarSetterUtil<wzkcfg::time>(self, key, value);
-            } else {  // TODO datetime
+            } else if (tp.compare("datetime") == 0) {
+              GenericScalarSetterUtil<wzkcfg::date_time>(self, key, value);
+            } else {
               std::string msg{"Creating a new parameter (at key `"};
               msg += key;
               msg += "`) from python type `";
@@ -1285,7 +1459,9 @@ inline void RegisterConfiguration(pybind11::module &m) {
   pybind11::register_local_exception<wzkcfg::KeyError>(m, "KeyError",
                                                        PyExc_KeyError);
   pybind11::register_local_exception<wzkcfg::TypeError>(m, "TypeError",
-                                                        PyExc_ValueError);
+                                                        PyExc_TypeError);
+  pybind11::register_local_exception<wzkcfg::ValueError>(m, "ValueError",
+                                                         PyExc_ValueError);
   pybind11::register_local_exception<wzkcfg::ParseError>(m, "ParseError",
                                                          PyExc_RuntimeError);
 
@@ -1295,6 +1471,8 @@ inline void RegisterConfiguration(pybind11::module &m) {
       "Raised if an invalid type was used to get/set a parameter.";
   m.attr("ParseError").attr("__doc__") =
       "Raised if parsing a configuration string/file failed.";
+  m.attr("ValueError").attr("__doc__") =
+      "Raised if invalid input values have been provided.";
 
   // // TODO remove
   // m.def("dev", [m]() {

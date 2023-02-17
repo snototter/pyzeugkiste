@@ -1,7 +1,9 @@
 import pytest
 import json
-import toml
 import math
+import pytz
+import toml
+import datetime
 from pathlib import Path
 from pyzeugkiste import config as pyc
 
@@ -275,6 +277,35 @@ def test_floating_point():
 # TODO test date
 # TODO test time
 # TODO test date_time
+
+def test_datetime():
+    cfg = pyc.load_toml_str("""
+        day = 2022-12-01
+        time = 08:30:00
+        dt1 = 2000-02-29T17:30:15.123
+        dt2 = 2000-02-29T17:30:15.123-12:00
+        """)
+    day = datetime.date(2022, 12, 1)
+    assert cfg['day'] == day
+    assert cfg.get_date('day') == day
+
+    tm = datetime.time(8, 30)
+    assert cfg['time'] == tm
+    assert cfg.get_time('time') == tm
+
+    dt = datetime.datetime(2000, 2, 29, 17, 30, 15, 123000)
+    assert isinstance(cfg['dt1'], datetime.datetime)
+    assert cfg['dt1'] == dt
+#TODO    assert cfg.get_datetime('dt1') == dt
+    assert cfg['dt1'].tzinfo is None
+
+    with pytest.raises(pyc.TypeError):
+        cfg['dt1'] = day
+    with pytest.raises(pyc.TypeError):
+        cfg['dt1'] = tm
+
+    # TODO test time offset
+    assert cfg['dt2'].tzinfo is not None
 
 # TODO test keys/parameter_names
 # TODO test adjust paths
