@@ -28,7 +28,7 @@ classifiers = [
 
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-cov", "toml"]
+test = ["pytest", "pytest-cov", "toml", "pytz"]
 dev = ["pre-commit"]
 
 

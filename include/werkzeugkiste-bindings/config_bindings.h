@@ -219,9 +219,9 @@ inline wzkcfg::date_time PyObjToDateTime(const pybind11::object &obj) {
       WZKLOG_WARN("TODO opt1 utcoffset is {}", offset_min);
 
       // Option 2
-      auto pytz = pybind11::module::import("pytz");
-      const auto pyutc = obj.attr("astimezone")(pytz.attr("utc"));
-      WZKLOG_WARN("TODO opt2 pyobj in utc: {}", pyutc);
+      //auto pytz = pybind11::module::import("pytz");
+      //const auto pyutc = obj.attr("astimezone")(pytz.attr("utc"));
+      //WZKLOG_WARN("TODO opt2 pyobj in utc: {}", pyutc);
 
       return wzkcfg::date_time{d, t, wzkcfg::time_offset{offset_min}};
     }
@@ -259,12 +259,11 @@ inline pybind11::object DateTimeToPyObj(const wzkcfg::date_time &dt) {
         dt.date.year, dt.date.month, dt.date.day, dt.time.hour, dt.time.minute,
         dt.time.second, dt.time.nanosecond / 1000);
   } else {  // NOLINT
-    auto pytz = pybind11::module::import("pytz");
     const wzkcfg::date_time utc = dt.UTC();
     return pydatetime.attr("datetime")(
         utc.date.year, utc.date.month, utc.date.day, utc.time.hour,
         utc.time.minute, utc.time.second, utc.time.nanosecond / 1000,
-        pytz.attr("utc"));
+        pydatetime.attr("timezone").attr("utc"));
   }
 }
 
