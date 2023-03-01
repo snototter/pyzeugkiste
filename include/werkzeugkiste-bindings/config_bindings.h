@@ -119,6 +119,7 @@ c['foo'] = False # fail
 now.utcoffset() -> None
 now_utc.utcoffset() -> timedelta
 
+
 */
 
 namespace werkzeugkiste::bindings {
@@ -178,7 +179,15 @@ inline wzkcfg::time PyObjToTime(const pybind11::object &obj) {
     PyDateTime_IMPORT;
   }
 
-  if (PyTime_CheckExact(obj.ptr())) {  // || PyDateTime_Check(obj.ptr())) {
+  // Currently, only conversion from a datetime.time object is allowed. An
+  // implicit conversion from a PyDateTime object would be convenient, but
+  // also a pain to debug. Consider for example:
+  //   now = datetime.datetime.now()
+  //   cfg['did_not_exist'] = now  # --> will be datetime.datetime
+  //   cfg['key'] = now  # Does the user want to replace an existing 'key' of
+  //                     # type `time` by `now.time()` or change the type to
+  //                     # datetime.datetime?
+  if (PyTime_CheckExact(obj.ptr())) {
     // Object is datetime.time
     return PyObjToTimeUnchecked(obj);
   }
@@ -208,21 +217,11 @@ inline wzkcfg::date_time PyObjToDateTime(const pybind11::object &obj) {
     const wzkcfg::time t = PyObjToTimeUnchecked(obj);
 
     if (obj.attr("tzinfo").is_none()) {
-      WZKLOG_INFO("No time zone set!");  // TODO remove
       return wzkcfg::date_time{d, t};
     } else {
-      WZKLOG_WARN("Time zone is set, need to convert to UTC!");
-      // Option 1
       const auto pyoffset_sec = obj.attr("utcoffset")().attr("total_seconds")();
       const auto offset_min =
           static_cast<int_fast16_t>(pyoffset_sec.cast<double>() / 60.0);
-      WZKLOG_WARN("TODO opt1 utcoffset is {}", offset_min);
-
-      // Option 2
-      //auto pytz = pybind11::module::import("pytz");
-      //const auto pyutc = obj.attr("astimezone")(pytz.attr("utc"));
-      //WZKLOG_WARN("TODO opt2 pyobj in utc: {}", pyutc);
-
       return wzkcfg::date_time{d, t, wzkcfg::time_offset{offset_min}};
     }
   }
@@ -247,24 +246,23 @@ inline pybind11::object TimeToPyObj(const wzkcfg::time &t) {
 }
 
 inline pybind11::object DateTimeToPyObj(const wzkcfg::date_time &dt) {
-  // TODO docstr -> returned datetime will be in UTC+00:00 !!!
-  // datetime(year, month, day[, hour[, minute[, second[,
-  // microsecond[,tzinfo]]]]])
-  //  |
-  //  |  The year, month and day arguments are required. tzinfo may be None, or
-  //  an |  instance of a tzinfo subclass. The remaining arguments may be ints.
   auto pydatetime = pybind11::module::import("datetime");
   if (dt.IsLocal()) {
     return pydatetime.attr("datetime")(
         dt.date.year, dt.date.month, dt.date.day, dt.time.hour, dt.time.minute,
         dt.time.second, dt.time.nanosecond / 1000);
-  } else {  // NOLINT
-    const wzkcfg::date_time utc = dt.UTC();
-    return pydatetime.attr("datetime")(
-        utc.date.year, utc.date.month, utc.date.day, utc.time.hour,
-        utc.time.minute, utc.time.second, utc.time.nanosecond / 1000,
-        pydatetime.attr("timezone").attr("utc"));
   }
+
+  auto timedelta = pydatetime.attr("timedelta");
+  auto timezone = pydatetime.attr("timezone");
+  // Ctor parameter order is: (days=0, seconds=0, microseconds=0,
+  //   milliseconds=0, minutes=0, hours=0, weeks=0)
+  // https://docs.python.org/3/library/datetime.html#datetime.timedelta
+  auto offset_td = timedelta(0, 0, 0, 0, dt.offset.value().minutes);
+  return pydatetime.attr("datetime")(
+      dt.date.year, dt.date.month, dt.date.day, dt.time.hour, dt.time.minute,
+      dt.time.second, dt.time.nanosecond / 1000,
+      timezone(offset_td));
 }
 
 inline std::string PathStringFromPython(const pybind11::object &path) {
@@ -300,6 +298,8 @@ class ConfigWrapper {
   bool Empty() const { return cfg_.Empty(); }
 
   bool Contains(std::string_view key) const { return cfg_.Contains(key); }
+
+  std::size_t Size() const { return cfg_.Size(); }
 
   wzkcfg::ConfigType Type(std::string_view key) const { return cfg_.Type(key); }
 
@@ -701,7 +701,8 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           ``"scheduler.dates.day1"``.
         value: The :class:`datetime.date` object to be set. Additionally,
           the value can also be specified as a :class:`str` representation
-          in the format ``Y-m-d`` or ``d.m.Y``.
+          in the format ``Y-m-d`` or ``d.m.Y``. Note that the year component
+          must be :math:`\geq 0`.
 
       Raises:
         :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of
@@ -766,6 +767,8 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           the value can also be specified as a :class:`str` representation
           in the format ``HH:MM``, ``HH:MM:SS``, ``HH:MM:SS.sss`` (milliseconds),
           ``HH:MM:SS.ssssss`` (microseconds) or ``HH:MM:SS.sssssssss`` (nanoseconds).
+          Leap seconds are not supported, *i.e.* the seconds component must
+          be :math:`\in [0, 59]`.
 
       Raises:
         :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of
@@ -828,7 +831,9 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
           ``"scheduler.startup_time"``.
         value: The :class:`datetime.datetime` object to be set. Additionally,
           the value can also be specified as a :class:`str` representation
-          in the `RFC 3339 <https://www.rfc-editor.org/rfc/rfc3339>`__ format.
+          in the `RFC 3339 <https://www.rfc-editor.org/rfc/rfc3339>`__ format,
+          but the *Unknown Local Offset Convention* (*i.e.* ``-00:00``) and
+          *Leap Seconds* are not supported.
 
       Raises:
         :class:`~pyzeugkiste.config.TypeError`: If ``key`` exists, but is of a
@@ -867,7 +872,7 @@ inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
         key: The fully-qualified parameter name, *e.g.*
           ``"scheduler.next_run"``.
         default_value: If the parameter does not exist, this value
-          will be returned instead. See :meth:`set_time` for supported
+          will be returned instead. See :meth:`set_datetime` for supported
           types/representations.
 
       Raises:
@@ -1067,10 +1072,12 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
             // TODO implement - what about inhomogeneous lists?
             WZKLOG_ERROR("Input value for `{}` is a list - not yet supported",
                          key);
+            throw std::runtime_error{"Not yet implemented"};
           } else if (pybind11::isinstance<pybind11::dict>(value)) {
             // TODO raise error or convert to Configuration, then SetGroup!
             WZKLOG_ERROR("Input value for `{}` is a dict - not yet supported",
                          key);
+            throw std::runtime_error{"Not yet implemented"};
           } else {
             if (tp.compare("date") == 0) {
               GenericScalarSetterUtil<wzkcfg::date>(self, key, value);
@@ -1438,7 +1445,8 @@ inline void RegisterConfiguration(pybind11::module &m) {
           "Checks if the given key (fully-qualified parameter name) exists.",
           pybind11::arg("key"));
 
-  // TODO size property
+  cfg.def("__len__", &detail::ConfigWrapper::Size,
+          "Returns the number of parameters (key-value pairs) in this configuration.");
 
   //---------------------------------------------------------------------------
   // Loading a configuration

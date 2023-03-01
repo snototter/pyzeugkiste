@@ -1,66 +1,14 @@
 import pytest
-import json
 import math
-import pytz
-import toml
 import datetime
-from pathlib import Path
 from pyzeugkiste import config as pyc
 
+def test_exception_hierarchy():
+    assert issubclass(pyc.KeyError, KeyError)
+    assert issubclass(pyc.TypeError, TypeError)
+    assert issubclass(pyc.ParseError, RuntimeError)
+    assert issubclass(pyc.ValueError, ValueError)
 
-def data():
-    return Path(__file__).parent.resolve() / 'data'
-
-
-def test_io_toml():
-    with pytest.raises(pyc.ParseError):
-        pyc.load_toml_file(data() / 'test-invalid.toml')
-
-    with pytest.raises(pyc.ParseError):
-        pyc.load_toml_file('no-such-file.toml')
-
-    cfg = pyc.Configuration()
-    assert cfg.empty()
-
-    cfg = pyc.load_toml_file(data() / 'test-valid1.toml')
-    assert not cfg.empty()
-    assert 'value1' in cfg
-    assert 'value2' in cfg
-
-    # Serialize and reload as TOML
-    tstr = cfg.to_toml()
-    cfg2 = pyc.load_toml_str(tstr)
-    assert cfg == cfg2
-    cfg.set_bool('new', True)
-    assert cfg != cfg2
-
-    pn1 = cfg.list_parameter_names()
-    pn2 = cfg2.list_parameter_names()
-    assert len(pn1) == (len(pn2) + 1)
-    # TODO test .size
-
-    tstr = cfg.to_toml()
-    t = toml.loads(tstr)
-    # t.keys() returns only the names of the first level child nodes.
-    pn1 = [p for p in cfg.list_parameter_names() if not '.' in p]
-    assert len(t.keys()) == len(pn1)
-
-    # Serialize and reload as JSON
-    jstr = cfg.to_json()
-    j = json.loads(jstr)
-    assert len(j) == len(pn1)
-
-    # TODO reload Configuration as JSON
-
-    # TODO serialize and reload as libconfig
-
-
-# TODO
-# def test_io_json()
-# special test for None
-
-# TODO
-# def test_io_libconfig()
 
 def test_boolean():
     cfg = pyc.load_toml_str("""
@@ -70,29 +18,47 @@ def test_boolean():
         flt = 1.5
         str = 'value'
         """)
+    
+    assert len(cfg) == 5
+
+    # Invalid keys --> KeyError
+    with pytest.raises(pyc.KeyError):
+        cfg['b']
+    with pytest.raises(KeyError):
+        cfg['b']
 
     with pytest.raises(pyc.KeyError):
         cfg.get_bool('b')
+    with pytest.raises(KeyError):
+        cfg.get_bool('b')
 
+    # Try to load as an invalid/incompatible type --> TypeError
     with pytest.raises(pyc.TypeError):
+        cfg.get_bool('num')
+    with pytest.raises(TypeError):
         cfg.get_bool('num')
 
     with pytest.raises(pyc.TypeError):
+        cfg.get_bool('flt')
+    with pytest.raises(TypeError):
         cfg.get_bool('flt')
 
     with pytest.raises(pyc.TypeError):
         cfg.get_bool('str')
 
-    assert cfg.get_bool('b1')
-    assert not cfg.get_bool('b2')
+    # Retrieve value as intended:
     assert cfg['b1']
     assert not cfg['b2']
+    assert cfg.get_bool('b1')
+    assert not cfg.get_bool('b2')
     assert isinstance(cfg['b1'], bool)
+    assert isinstance(cfg.get_bool('b1'), bool)
 
     # Use default values if the key is not found:
     assert cfg.get_bool_or('b', True)
     assert not cfg.get_bool_or('b', False)
 
+    # ... but an invalid type remains an invalid type:
     with pytest.raises(pyc.TypeError):
         cfg.get_bool_or('str', True)
 
@@ -120,35 +86,40 @@ def test_integer():
         str = 'value'
         """)
 
+    assert len(cfg) == 8
+
+    # Invalid keys --> KeyError
     with pytest.raises(pyc.KeyError):
         cfg.get_int('i')
 
     with pytest.raises(pyc.TypeError):
         cfg.get_int('str')
 
-    assert 3 == cfg.get_int('i1')
+    # Use as intended
     assert 3 == cfg['i1']
-    assert -12345 == cfg.get_int('i2')
+    assert 3 == cfg.get_int('i1')
     assert -12345 == cfg['i2']
-    assert 21474836480 == cfg.get_int('i3')
+    assert -12345 == cfg.get_int('i2')
     assert 21474836480 == cfg['i3']
-    assert -21474836480 == cfg.get_int('i4')
+    assert 21474836480 == cfg.get_int('i3')
     assert -21474836480 == cfg['i4']
+    assert -21474836480 == cfg.get_int('i4')
 
-    assert isinstance(cfg.get_int('i1'), int)
     assert isinstance(cfg['i1'], int)
+    assert isinstance(cfg.get_int('i1'), int)
 
     # Use default values if the key is not found:
     assert 42 == cfg.get_int_or('x', 42)
     assert -17 == cfg.get_int_or('x', -17)
 
+    # ... but an invalid type remains an invalid type:
     with pytest.raises(pyc.TypeError):
         cfg.get_int_or('str', 3)
 
     # Implicit casts are allowed if the value is exactly
-    # representable in the target type:
+    # representable by the target type:
     with pytest.raises(pyc.TypeError):
-        cfg.get_int('flt1')
+        cfg.get_int('flt1')  # 1.5 can't be represented as int
 
     assert -3 == cfg.get_int('flt2')
     assert isinstance(cfg.get_int('flt2'), int)
@@ -182,17 +153,17 @@ def test_integer():
     assert pytest.approx(3) == cfg['flt1']
     assert isinstance(cfg['flt1'], float)  # But the type is not changed
 
-    # We also cannot change a numeric type:
-    with pytest.raises(pyc.TypeError):
-        cfg.set_int('flt2', -1)
-
-    with pytest.raises(pyc.TypeError):
-        cfg.set_float('my-int1', 42)
-
-    # But it can be set if the value is exactly representable:
-    cfg['flt2'] = int(-1)
+    cfg.set_int('flt2', -1)
     assert pytest.approx(-1) == cfg['flt2']
     assert isinstance(cfg['flt2'], float)
+    assert -1 == cfg.get_int('flt2')
+
+    cfg['flt2'] = int(-3)
+    assert pytest.approx(-3) == cfg['flt2']
+    assert isinstance(cfg['flt2'], float)
+
+    with pytest.raises(pyc.TypeError):
+        cfg.set_float('my-int1', 4.2)
 
     cfg['my-int1'] = float(42)
     assert 42 == cfg['my-int1']
@@ -210,6 +181,8 @@ def test_floating_point():
         spec2 = nan
         str = 'value'
         """)
+    
+    assert len(cfg) == 8
 
     with pytest.raises(pyc.KeyError):
         cfg.get_float('x')
@@ -286,24 +259,55 @@ def test_floating_point():
     assert cfg['flt1'] > 0
 
 # TODO test_str
-# TODO test_date
 # TODO test_time
+# TODO test_group
+# TODO test_list
+
+def test_date():
+    with pytest.raises(pyc.ParseError):
+        pyc.load_toml_str("day = 2023-02-29")
+
+    cfg = pyc.load_toml_str("""
+        day = 2022-12-01
+        time = 08:30:00
+        dt = 2000-02-29T17:30:15.123
+        """)
+    assert len(cfg) == 3
+    
+    # Querying a date
+    day = datetime.date(2022, 12, 1)
+    assert cfg['day'] == day
+    assert cfg.get_date('day') == day
+    assert isinstance(cfg['day'], datetime.date)
+
+    with pytest.raises(pyc.KeyError):
+        cfg.get_date('no-such-key')
+
+    with pytest.raises(pyc.TypeError):
+        cfg.get_time('day')
+
+    with pytest.raises(pyc.TypeError):
+        cfg.get_datetime('day')
+
+    with pytest.raises(pyc.TypeError):
+        cfg['day'] = datetime.time(8, 30)
+    
+    day += datetime.timedelta(days=3)
+    cfg['day'] = day
+    assert cfg['day'] == day
+    
 
 def test_datetime():
     cfg = pyc.load_toml_str("""
         day = 2022-12-01
         time = 08:30:00
         dt1 = 2000-02-29T17:30:15.123
-        dt2 = 2000-02-29T17:30:15.123-12:00
+        dt2 = 2000-02-29T17:30:15.123Z
+        dt3 = 2000-02-29T17:30:15.123+00:00
+        dt4 = 2000-02-29T17:30:15.123-12:10
+        dt5 = 2000-02-29T17:30:15.123+00:01
         """)
-    # Querying a date/time/datetime
-    day = datetime.date(2022, 12, 1)
-    assert cfg['day'] == day
-    assert cfg.get_date('day') == day
-
-    tm = datetime.time(8, 30)
-    assert cfg['time'] == tm
-    assert cfg.get_time('time') == tm
+    assert len(cfg) == 7
 
     dt = datetime.datetime(2000, 2, 29, 17, 30, 15, 123000)
     assert isinstance(cfg['dt1'], datetime.datetime)
@@ -321,41 +325,69 @@ def test_datetime():
     with pytest.raises(pyc.TypeError):
         cfg.get_datetime_or('time', dt)
 
-    # pyzeugkiste doesn't know the timezone, only the offset. Thus, the
-    # datetime object will be adjusted to UTC time, if an offset has been
-    # specified
+    # pyzeugkiste will set the offset of the datetime's timezone info
     assert cfg['dt1'].tzinfo is None
     assert cfg['dt2'].tzinfo is not None
-    assert cfg['dt2'].utcoffset().total_seconds() == 0
+    assert cfg['dt3'].tzinfo is not None
+    assert cfg['dt4'].tzinfo is not None
+    assert cfg['dt5'].tzinfo is not None
 
-    # TODO test time offsets
+    # -12:10 hrs = 43,800
+    assert pytest.approx(0.0) == cfg['dt2'].utcoffset().total_seconds()
+    assert pytest.approx(0.0) == cfg['dt3'].utcoffset().total_seconds()
+    assert pytest.approx(-43800.0) == cfg['dt4'].utcoffset().total_seconds()
+    assert pytest.approx(60.0) == cfg['dt5'].utcoffset().total_seconds()
+
+    assert cfg['dt2'] == cfg['dt3']
+    assert cfg['dt2'] == (cfg['dt4'] - datetime.timedelta(hours=12, minutes=10))
+    assert cfg['dt2'] == (cfg['dt5'] + datetime.timedelta(minutes=1))
 
     # Setting a datetime
     with pytest.raises(pyc.TypeError):
-        cfg['dt1'] = day
+        cfg['dt1'] = datetime.date(2022, 12, 1)
     with pytest.raises(pyc.TypeError):
-        cfg['dt1'] = tm
+        cfg['dt1'] = datetime.time(8, 30)
 
 
-# TODO test keys/parameter_names
-# TODO test adjust paths
-# TODO test placeholders
-# TODO test loading nested TOML
+def test_size():
+    cfg = pyc.load_toml_str("""
+        [scalars]
+        flag = true
+        str = 'value'
+        int = 1234
+        flt1 = 1.0
+        flt2 = -1e3
 
-# def test_placeholders():
-#     cfg = config.Configuration.load_toml_string("""
-#         str1 = 'value'
-#         str2 = '[%REP%]'
+        [compound]
+        # Mixed floating point and integral values:
+        lst_numeric = [-42, 3, 1.5]
 
-#         [tbl]
-#         str1 = 'value %REP%'
-#         str2 = '123'
-#         str3 = 'key'
-#         """)
+        [datetime]
+        day = 2023-02-12
+        time = 08:30:00
+        """)
+    assert 3 == len(cfg)
+    assert 5 == len(cfg['scalars'])
+    assert 1 == len(cfg['compound'])
+    # TODO enable once we support list getter/setter
+    # assert 3 == len(cfg['compound.lst_numeric'])
+    assert 2 == len(cfg['datetime'])
 
-#     cfg.replace_placeholders([('%REP%', '...'), ('e', '')])
-#     assert cfg.get_str('str1') == 'valu'
-#     assert cfg.get_str('str2') == '[...]'
-#     assert cfg.get_str('tbl.str1') == 'valu ...'
-#     assert cfg.get_str('tbl.str2') == '123'
-#     assert cfg.get_str('tbl.str3') == 'ky'
+    assert 'scalars.str' in cfg
+    assert 'str' in cfg['scalars']
+
+    assert 'scalars.flt' not in cfg
+    assert 'scalars.flt1' in cfg
+
+    assert 'flt' not in cfg['scalars']
+    assert 'flt1' in cfg['scalars']
+
+    # Not pyc.TypeError, because the lookup returns a built-in int.
+    with pytest.raises(TypeError):
+        len(cfg['scalars.int'])
+    
+    with pytest.raises(pyc.KeyError):
+        len(cfg['no-such-key'])
+
+    # TODO enable once we support list getter/setter
+    # assert 3 == len(cfg['compound']['lst_numeric'])
