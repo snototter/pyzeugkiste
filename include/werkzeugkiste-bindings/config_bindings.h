@@ -261,8 +261,7 @@ inline pybind11::object DateTimeToPyObj(const wzkcfg::date_time &dt) {
   auto offset_td = timedelta(0, 0, 0, 0, dt.offset.value().minutes);
   return pydatetime.attr("datetime")(
       dt.date.year, dt.date.month, dt.date.day, dt.time.hour, dt.time.minute,
-      dt.time.second, dt.time.nanosecond / 1000,
-      timezone(offset_td));
+      dt.time.second, dt.time.nanosecond / 1000, timezone(offset_td));
 }
 
 inline std::string PathStringFromPython(const pybind11::object &path) {
@@ -287,9 +286,39 @@ class ConfigWrapper {
     return instance;
   }
 
+  static ConfigWrapper LoadJSONFile(const pybind11::object &filename) {
+    // TODO support NullValuePolicy
+    ConfigWrapper instance{};
+    instance.cfg_ = wzkcfg::LoadJSONFile(PathStringFromPython(filename));
+    return instance;
+  }
+
+  static ConfigWrapper LoadJSONString(std::string_view json_str) {
+    // TODO support NullValuePolicy
+    ConfigWrapper instance{};
+    instance.cfg_ = wzkcfg::LoadJSONString(json_str);
+    return instance;
+  }
+
+  static ConfigWrapper LoadLibconfigFile(const pybind11::object &filename) {
+    ConfigWrapper instance{};
+    instance.cfg_ = wzkcfg::LoadLibconfigFile(PathStringFromPython(filename));
+    return instance;
+  }
+
+  static ConfigWrapper LoadLibconfigString(std::string_view lcfg_str) {
+    ConfigWrapper instance{};
+    instance.cfg_ = wzkcfg::LoadLibconfigString(lcfg_str);
+    return instance;
+  }
+
   std::string ToTOMLString() const { return cfg_.ToTOML(); }
 
   std::string ToJSONString() const { return cfg_.ToJSON(); }
+
+  std::string ToYAMLString() const { return cfg_.ToYAML(); }
+
+  std::string ToLibconfigString() const { return cfg_.ToLibconfig(); }
 
   bool Equals(const ConfigWrapper &other) const {
     return cfg_.Equals(other.cfg_);
@@ -424,7 +453,11 @@ class ConfigWrapper {
   // Special functions
   std::vector<std::string> ListParameterNames(
       bool include_array_entries) const {
-    return cfg_.ListParameterNames(include_array_entries);
+    return cfg_.ListParameterNames(include_array_entries, true);
+  }
+
+  std::vector<std::string> Keys() const {
+    return cfg_.ListParameterNames(false, false);
   }
 
   bool ReplacePlaceholders(
@@ -1104,7 +1137,7 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
 
 inline void RegisterConfigUtilities(pybind11::class_<ConfigWrapper> &cfg) {
   std::string doc_string = R"doc(
-      Returns the fully-qualified names/keys of all parameters.
+      Returns the fully-qualified names/keys of **all parameters**.
 
       The key defines the "path" from the configuration's root node
       to the parameter.
@@ -1175,9 +1208,44 @@ inline void RegisterConfigUtilities(pybind11::class_<ConfigWrapper> &cfg) {
          ]
 
       )doc";
-  // TODO rename to keys ? or add an alias ?
   cfg.def("list_parameter_names", &ConfigWrapper::ListParameterNames,
           doc_string.c_str(), pybind11::arg("include_array_entries") = false);
+
+  doc_string = R"doc(
+      Returns the parameter names/keys of the direct child nodes (first-level
+      parameters) of this configuration.
+
+      Returns a :class:`list` of parameter names (*i.e.* a copy), **not** a
+      dynamic view. If the configuration changes, any previously returned list
+      will **not** be updated automatically.
+
+      To recursively retrieve **all** parameter names within this configuration,
+      :meth:`list_parameter_names` should be used instead.
+
+      **Corresponding C++ API:**
+      ``werkzeugkiste::config::Configuration::ListParameterNames``.
+
+      .. code-block:: toml
+         :caption: Exemplary configuration
+
+         str1 = 'value'
+
+         [values.numeric]
+         int1 = 42
+         flt1 = 1e-3
+         arr1 = [1, 2, 3]
+
+      .. code-block:: python
+         :caption: Keys
+
+         keys = cfg.keys()
+         # returns ['str1', 'values']
+
+         keys = cfg['values'].keys()
+         # returns ['int1', 'flt1', 'arr1']
+
+      )doc";
+  cfg.def("keys", &ConfigWrapper::Keys, doc_string.c_str());
 
   doc_string = R"doc(
       Replaces **all occurrences** of the given string placeholders.
@@ -1446,16 +1514,45 @@ inline void RegisterConfiguration(pybind11::module &m) {
           pybind11::arg("key"));
 
   cfg.def("__len__", &detail::ConfigWrapper::Size,
-          "Returns the number of parameters (key-value pairs) in this configuration.");
+          "Returns the number of parameters (key-value pairs) in this "
+          "configuration.");
 
   //---------------------------------------------------------------------------
   // Loading a configuration
+
+  // TODO generic load (deduces type from extension)
+  // TODO document exceptions
   m.def("load_toml_str", &detail::ConfigWrapper::LoadTOMLString,
         "Loads the configuration from a `TOML <https://toml.io/en/>`__ string.",
         pybind11::arg("toml_str"));
 
   m.def("load_toml_file", &detail::ConfigWrapper::LoadTOMLFile,
         "Loads the configuration from a `TOML <https://toml.io/en/>`__ file.",
+        pybind11::arg("filename"));
+
+  // TODO NullValuePolicy
+  m.def(
+      "load_json_str", &detail::ConfigWrapper::LoadJSONString,
+      "Loads the configuration from a `JSON <https://www.json.org/>`__ string.",
+      pybind11::arg("json_str"));
+
+  // TODO NullValuePolicy
+  m.def("load_json_file", &detail::ConfigWrapper::LoadJSONFile,
+        "Loads the configuration from a `JSON <https://www.json.org/>`__ file.",
+        pybind11::arg("filename"));
+
+  // TODO libconfig (doc: only available if built with libconfig support)
+  // TODO enable automatically if libconfig++ is installed or enable via
+  //   install extras?
+  m.def("load_libconfig_str", &detail::ConfigWrapper::LoadLibconfigString,
+        "Loads the configuration from a `Libconfig "
+        "<http://hyperrealm.github.io/libconfig/>`__ "
+        "string if `libconfig++` is available.",
+        pybind11::arg("cfg_str"));
+
+  m.def("load_libconfig_file", &detail::ConfigWrapper::LoadLibconfigFile,
+        "Loads the configuration from a `Libconfig "
+        "<http://hyperrealm.github.io/libconfig/>`__ file.",
         pybind11::arg("filename"));
 
   //---------------------------------------------------------------------------
@@ -1468,6 +1565,17 @@ inline void RegisterConfiguration(pybind11::module &m) {
           "Returns a `JSON <https://www.json.org/>`__-formatted representation "
           "of this configuration.\n\nNote that date/time parameters will be "
           "replaced by their string representation.");
+
+  // TODO should be supported always (change in wzk!)
+  cfg.def("to_libconfig", &detail::ConfigWrapper::ToLibconfigString,
+          "Returns a `Libconfig "
+          "<http://hyperrealm.github.io/libconfig/>`__-formatted "
+          "representation of this configuration.");
+
+  cfg.def("to_yaml", &detail::ConfigWrapper::ToYAMLString,
+          "Returns a `YAML <https://yaml.org/>`__-formatted representation "
+          "of this configuration.");
+  // TODO state currently supported version + auto-replacements (date?)
 
   //---------------------------------------------------------------------------
   // Getter/Setter
@@ -1510,16 +1618,17 @@ inline void RegisterConfiguration(pybind11::module &m) {
   m.attr("ValueError").attr("__doc__") =
       "Raised if invalid input values have been provided.";
 
-  // // TODO remove
+  // // // TODO remove
   // m.def("dev", [m]() {
-  //   auto pydatetime = pybind11::module::import("datetime");
-  //   pybind11::object pydate = pydatetime.attr("date")(2023, 3, 1);
+  //   // auto pydatetime = pybind11::module::import("datetime");
+  //   // pybind11::object pydate = pydatetime.attr("date")(2023, 3, 1);
 
-  //   pybind11::object pytime = pydatetime.attr("time")(23, 49, 10, 123456);
+  //   // pybind11::object pytime = pydatetime.attr("time")(23, 49, 10, 123456);
 
-  //   return pybind11::make_tuple(pydate, pytime);
-  //   // import pyzeugkiste
-  //   // pyzeugkiste._core._cfg.dev()
+  //   // return pybind11::make_tuple(pydate, pytime);
+  //   // // import pyzeugkiste
+  //   // // pyzeugkiste._core._cfg.dev()
+  //   return pybind11::make_tuple(std::make_optional(42), std::nullopt);
   // });
 }
 }  // namespace werkzeugkiste::bindings

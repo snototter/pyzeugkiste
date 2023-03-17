@@ -18,7 +18,7 @@ def test_boolean():
         flt = 1.5
         str = 'value'
         """)
-    
+
     assert len(cfg) == 5
 
     # Invalid keys --> KeyError
@@ -181,7 +181,7 @@ def test_floating_point():
         spec2 = nan
         str = 'value'
         """)
-    
+
     assert len(cfg) == 8
 
     with pytest.raises(pyc.KeyError):
@@ -273,7 +273,7 @@ def test_date():
         dt = 2000-02-29T17:30:15.123
         """)
     assert len(cfg) == 3
-    
+
     # Querying a date
     day = datetime.date(2022, 12, 1)
     assert cfg['day'] == day
@@ -291,11 +291,11 @@ def test_date():
 
     with pytest.raises(pyc.TypeError):
         cfg['day'] = datetime.time(8, 30)
-    
+
     day += datetime.timedelta(days=3)
     cfg['day'] = day
     assert cfg['day'] == day
-    
+
 
 def test_datetime():
     cfg = pyc.load_toml_str("""
@@ -382,12 +382,83 @@ def test_size():
     assert 'flt' not in cfg['scalars']
     assert 'flt1' in cfg['scalars']
 
-    # Not pyc.TypeError, because the lookup returns a built-in int.
+    # Raises a standard TypeError instead of pyc.TypeError, because the
+    # (successful) lookup returns a built-in int.
     with pytest.raises(TypeError):
         len(cfg['scalars.int'])
-    
+
     with pytest.raises(pyc.KeyError):
         len(cfg['no-such-key'])
 
     # TODO enable once we support list getter/setter
     # assert 3 == len(cfg['compound']['lst_numeric'])
+
+
+def test_keys():
+    cfg = pyc.load_toml_str("""
+        [scalars]
+        flag = true
+        str = 'value'
+
+        [scalars.numeric]
+        int = 1234
+        flt1 = 1.0
+        flt2 = -1e3
+
+        [scalars.dates]
+        day = 2023-02-12
+        time = 08:30:00
+
+        [lists]
+        lst_numeric = [-42, 3, 1.5]
+        """)
+    assert 2 == len(cfg)
+    keys = sorted(cfg.keys())
+    assert 2 == len(keys)
+    assert 'lists' == keys[0]
+    assert 'scalars' == keys[1]
+
+    assert 1 == len(cfg['lists'])
+    keys = cfg['lists'].keys()
+    assert 1 == len(keys)
+    assert keys[0] == 'lst_numeric'
+
+    assert 4 == len(cfg['scalars'])
+    keys = cfg['scalars'].keys()
+    assert 4 == len(keys)
+    assert 'flag' in keys
+    assert 'str' in keys
+    assert 'numeric' in keys
+    assert 'dates' in keys
+
+    assert 3 == len(cfg['scalars']['numeric'])
+    assert 3 == len(cfg['scalars.numeric'])
+    tmp = cfg['scalars']['numeric'].keys()
+    keys = cfg['scalars.numeric'].keys()
+    assert tmp == keys
+    assert 3 == len(keys)
+    assert 'int' in keys
+    assert 'flt1' in keys
+    assert 'flt2' in keys
+
+
+# def test_interator():
+#     cfg = pyc.load_toml_str("""
+#         [scalars]
+#         flag = true
+#         str = 'value'
+
+#         [scalars.numeric]
+#         int = 1234
+#         flt1 = 1.0
+#         flt2 = -1e3
+
+#         [scalars.dates]
+#         day = 2023-02-12
+#         time = 08:30:00
+
+#         [lists]
+#         lst_numeric = [-42, 3, 1.5]
+#         """)
+#     cnt = sum([1 for _ in cfg])
+#     assert 3 == cnt

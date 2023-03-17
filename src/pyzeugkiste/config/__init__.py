@@ -1,6 +1,8 @@
 from pyzeugkiste._core._cfg import (
     __doc__, Configuration,
     load_toml_str, load_toml_file,
+    load_json_str, load_json_file,
+    load_libconfig_str, load_libconfig_file,
     KeyError, TypeError, ValueError, ParseError
 )
 
