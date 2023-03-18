@@ -92,6 +92,7 @@ Documentation
    pyzeugkiste.config.Configuration
    pyzeugkiste.config.KeyError
    pyzeugkiste.config.TypeError
+   pyzeugkiste.config.ValueError
    pyzeugkiste.config.ParseError
 
 .............
