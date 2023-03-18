@@ -91,6 +91,15 @@ pybind11_add_module(${pyzeugkiste_BINDINGS_TARGET} MODULE
                     ${pyzeugkiste_HEADER_FILES} ${pyzeugkiste_SOURCE_FILES})
 
 # ##############################################################################
+# If libconfig is available, add support
+find_path(LIB_LIBCFG_INCDIR libconfig.h++)
+find_library(LIB_LIBCFG_LIBRARY NAMES config++)
+
+if(LIB_LIBCFG_INCDIR)
+  set(werkzeugkiste_WITH_LIBCONFIG ON)
+endif()
+
+# ##############################################################################
 # Ensure werkzeugkiste is available
 FetchContent_Declare(
   werkzeugkiste
