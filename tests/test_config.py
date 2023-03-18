@@ -258,9 +258,55 @@ def test_floating_point():
     assert math.isinf(cfg['flt1'])
     assert cfg['flt1'] > 0
 
-# TODO test_str
-# TODO test_time
-# TODO test_group
+def test_str():
+    cfg = pyc.load_toml_str("""
+        flag = true
+        num = 1.5
+        str = 'value'
+        """)
+    assert len(cfg) == 3
+
+    # Try to load as an invalid/incompatible type --> TypeError
+    with pytest.raises(pyc.TypeError):
+        cfg.get_str('flag')
+    with pytest.raises(TypeError):
+        cfg.get_str('flag')
+
+    with pytest.raises(pyc.TypeError):
+        cfg.get_str('num')
+    with pytest.raises(TypeError):
+        cfg.get_str('num')
+
+    with pytest.raises(pyc.TypeError):
+        cfg.get_bool('str')
+
+    with pytest.raises(pyc.TypeError):
+        cfg.get_int('str')
+
+    # Retrieve value as intended:
+    assert 'value' == cfg['str']
+    assert 'value' == cfg.get_str('str')
+    assert isinstance(cfg['str'], str)
+    assert isinstance(cfg.get_str('str'), str)
+
+    # Use default values if the key is not found:
+    assert 'A' == cfg.get_str_or('unknown', 'A')
+
+    # ... but an invalid type remains an invalid type:
+    with pytest.raises(pyc.TypeError):
+        cfg.get_str_or('flag', 'A')
+
+    # Changing a value is allowed
+    cfg['str'] = 'changed'
+    assert 'changed' == cfg['str']
+
+    # But changing the type is not allowed
+    with pytest.raises(pyc.TypeError):
+        cfg['str'] = True
+
+    with pytest.raises(pyc.TypeError):
+        cfg.set_str('num', '123')
+
 
 def test_date():
     with pytest.raises(pyc.ParseError):
@@ -294,6 +340,40 @@ def test_date():
     day += datetime.timedelta(days=3)
     cfg['day'] = day
     assert cfg['day'] == day
+
+
+def test_time():
+    with pytest.raises(pyc.ParseError):
+        pyc.load_toml_str("tm = 24:30:01")
+
+    cfg = pyc.load_toml_str("""
+        time = 08:30:01
+        dt = 2000-02-29T17:30:15.123
+        """)
+    assert len(cfg) == 2
+
+    # Querying a time
+    tm = datetime.time(8, 30, 1)
+    assert cfg['time'] == tm
+    assert cfg.get_time('time') == tm
+    assert isinstance(cfg['time'], datetime.time)
+
+    with pytest.raises(pyc.KeyError):
+        cfg.get_time('no-such-key')
+
+    with pytest.raises(pyc.TypeError):
+        cfg.get_date('time')
+
+    with pytest.raises(pyc.TypeError):
+        cfg.get_datetime('time')
+
+    with pytest.raises(pyc.TypeError):
+        cfg['time'] = datetime.date.today()
+
+    tm = datetime.time(23, 59, 59, 135)
+    assert cfg['time'] != tm
+    cfg['time'] = tm
+    assert cfg['time'] == tm
 
 
 def test_datetime():
@@ -347,120 +427,6 @@ def test_datetime():
     with pytest.raises(pyc.TypeError):
         cfg['dt1'] = datetime.time(8, 30)
 
-
-def test_size():
-    cfg = pyc.load_toml_str("""
-        [scalars]
-        flag = true
-        str = 'value'
-        int = 1234
-        flt1 = 1.0
-        flt2 = -1e3
-
-        [compound]
-        # Mixed floating point and integral values:
-        lst_numeric = [-42, 3, 1.5]
-
-        [datetime]
-        day = 2023-02-12
-        time = 08:30:00
-        """)
-    assert 3 == len(cfg)
-    assert 5 == len(cfg['scalars'])
-    assert 1 == len(cfg['compound'])
-    # TODO enable once we support list getter/setter
-    # assert 3 == len(cfg['compound.lst_numeric'])
-    assert 2 == len(cfg['datetime'])
-
-    assert 'scalars.str' in cfg
-    assert 'str' in cfg['scalars']
-
-    assert 'scalars.flt' not in cfg
-    assert 'scalars.flt1' in cfg
-
-    assert 'flt' not in cfg['scalars']
-    assert 'flt1' in cfg['scalars']
-
-    # Raises a standard TypeError instead of pyc.TypeError, because the
-    # (successful) lookup returns a built-in int.
-    with pytest.raises(TypeError):
-        len(cfg['scalars.int'])
-
-    with pytest.raises(pyc.KeyError):
-        len(cfg['no-such-key'])
-
-    # TODO enable once we support list getter/setter
-    # assert 3 == len(cfg['compound']['lst_numeric'])
-
-
-def test_keys():
-    cfg = pyc.load_toml_str("""
-        [scalars]
-        flag = true
-        str = 'value'
-
-        [scalars.numeric]
-        int = 1234
-        flt1 = 1.0
-        flt2 = -1e3
-
-        [scalars.dates]
-        day = 2023-02-12
-        time = 08:30:00
-
-        [lists]
-        lst_numeric = [-42, 3, 1.5]
-        """)
-    assert 2 == len(cfg)
-    keys = sorted(cfg.keys())
-    assert 2 == len(keys)
-    assert 'lists' == keys[0]
-    assert 'scalars' == keys[1]
-
-    assert 1 == len(cfg['lists'])
-    keys = cfg['lists'].keys()
-    assert 1 == len(keys)
-    assert keys[0] == 'lst_numeric'
-
-    assert 4 == len(cfg['scalars'])
-    keys = cfg['scalars'].keys()
-    assert 4 == len(keys)
-    assert 'flag' in keys
-    assert 'str' in keys
-    assert 'numeric' in keys
-    assert 'dates' in keys
-
-    assert 3 == len(cfg['scalars']['numeric'])
-    assert 3 == len(cfg['scalars.numeric'])
-    tmp = cfg['scalars']['numeric'].keys()
-    keys = cfg['scalars.numeric'].keys()
-    assert tmp == keys
-    assert 3 == len(keys)
-    assert 'int' in keys
-    assert 'flt1' in keys
-    assert 'flt2' in keys
-
-
-# def test_interator():
-#     cfg = pyc.load_toml_str("""
-#         [scalars]
-#         flag = true
-#         str = 'value'
-
-#         [scalars.numeric]
-#         int = 1234
-#         flt1 = 1.0
-#         flt2 = -1e3
-
-#         [scalars.dates]
-#         day = 2023-02-12
-#         time = 08:30:00
-
-#         [lists]
-#         lst_numeric = [-42, 3, 1.5]
-#         """)
-#     cnt = sum([1 for _ in cfg])
-#     assert 3 == cnt
 
 def test_list():
     cfg = pyc.load_toml_str("""
@@ -531,7 +497,268 @@ def test_list():
     cfg['nested'] = lst
     assert lst == cfg['nested']
 
-    # TODO WIP - nested dicts are not yet supported
-    lst = [1, 2, {"foo": "bar", 3: "value"}]
+    # The list can also contain dictionaries
+    lst = [1, 2, {"foo": "bar", "str": "value"}]
     cfg['nested'] = lst
-    assert lst == cfg['nested']
+    assert 3 == len(cfg['nested'])
+    assert 1 == cfg['nested[0]']
+    assert 2 == cfg['nested[1]']
+    assert 2 == len(cfg['nested[2]'])
+    assert 'bar' == cfg['nested[2].foo']
+    assert 'value' == cfg['nested[2].str']
+
+
+def test_group():
+    cfg = pyc.load_toml_str("""
+        numbers = [1, 2, 3]
+        
+        [scalars]
+        int = 3
+        str = 'value'
+
+        [lvl1.lvl2]
+        flt = 3.5
+        """)
+    assert 3 == len(cfg)
+
+    assert isinstance(cfg['scalars'], type(cfg))
+    assert isinstance(cfg['lvl1.lvl2'], type(cfg))
+    assert isinstance(cfg['lvl1']['lvl2'], type(cfg))
+
+    with pytest.raises(pyc.TypeError):
+        cfg['lvl1.lvl2'] = False
+    
+    with pytest.raises(pyc.TypeError):
+        cfg['lvl1.lvl2.flt'] = 'value'
+    
+    cfg['lvl1.lvl2.flt'] = 2
+    assert cfg['lvl1.lvl2.flt'] == pytest.approx(2)
+    # But it should still be a floating point parameter
+    assert isinstance(cfg['lvl1.lvl2.flt'], float)
+
+    # __getitem__ returns a copy. Thus, the following will only change
+    # a temporary!
+    cfg['lvl1']['lvl2']['flt'] = 4
+    assert cfg['lvl1.lvl2.flt'] == pytest.approx(2)
+
+
+def test_dict():
+    cfg_toml = pyc.load_toml_str("""
+        int = 1
+        
+        [lvl1]
+        str = 'value'
+
+        [lvl1.lvl2]
+        flt = 3.5
+        numbers = [1, 2, 3]
+        nested = [{ name = 'foo' }, { name = 'bar', str = 'value' }]
+        """)
+    
+    pydict = {
+        "int": 1,
+        "lvl1": {
+            "str": "value",
+            "lvl2": {
+                "flt": 3.5,
+                "numbers": [1, 2, 3],
+                "nested": [
+                    { "name": "foo" },
+                    { "name": "bar", "str": "value" }
+                ]
+            }
+        }
+    }
+
+    cfg = pyc.Configuration()
+    cfg['dict'] = pydict
+
+    assert isinstance(cfg['dict'], type(cfg))
+    cfg = cfg['dict']
+    assert cfg == cfg_toml
+
+    assert 2 == len(cfg)
+    assert 1 == cfg['int']
+    assert 2 == len(cfg['lvl1'])
+    assert 'value' == cfg['lvl1.str']
+
+    assert 'value' == cfg['lvl1.lvl2.nested[1].str']
+    assert 'value' == cfg['lvl1']['lvl2']['nested'][1]['str']
+
+    lst = [1, 2, {"foo": 3, "3": "value"}]
+    cfg['mixed-lst'] = lst
+    assert isinstance(cfg['mixed-lst'], list)
+    assert 3 == len(cfg['mixed-lst'])
+    assert 1 == cfg['mixed-lst[0]']
+    assert 2 == cfg['mixed-lst[1]']
+    assert isinstance(cfg['mixed-lst[2]'], type(cfg))
+    assert 2 == len(cfg['mixed-lst[2]'])
+    assert 3 == cfg['mixed-lst[2].foo']
+    assert 'value' == cfg['mixed-lst[2].3']
+
+    # Dictionary keys must be strings:
+    lst = [1, 2, {"foo": "bar", 3: "value"}]
+    with pytest.raises(pyc.TypeError):
+        cfg['mixed-lst'] = lst
+    
+    # Dictionary keys must also be bare keys:
+    lst = [1, 2, {"fo o": "bar", "3": "value"}]
+    with pytest.raises(pyc.TypeError):
+        cfg['mixed-lst'] = lst
+
+    # Valid dictionary keys must not include dots, as these are reserved for
+    # a "key path".
+    lst = [1, 2, {"foo.invalid": "bar", "3": "value"}]
+    with pytest.raises(pyc.TypeError):
+        cfg['mixed-lst'] = lst
+
+
+def test_size():
+    cfg = pyc.load_toml_str("""
+        [scalars]
+        flag = true
+        str = 'value'
+        int = 1234
+        flt1 = 1.0
+        flt2 = -1e3
+
+        [compound]
+        # Mixed floating point and integral values:
+        lst_numeric = [-42, 3, 1.5]
+
+        [datetime]
+        day = 2023-02-12
+        time = 08:30:00
+        """)
+    assert 3 == len(cfg)
+    assert 5 == len(cfg['scalars'])
+    assert 1 == len(cfg['compound'])
+    assert 3 == len(cfg['compound.lst_numeric'])
+    assert 3 == len(cfg['compound']['lst_numeric'])
+
+    assert 2 == len(cfg['datetime'])
+
+    assert 'scalars.str' in cfg
+    assert 'str' in cfg['scalars']
+
+    assert 'scalars.flt' not in cfg
+    assert 'scalars.flt1' in cfg
+
+    assert 'flt' not in cfg['scalars']
+    assert 'flt1' in cfg['scalars']
+
+    # Raises a standard TypeError instead of pyc.TypeError, because the
+    # (successful) lookup returns a built-in int.
+    with pytest.raises(TypeError):
+        len(cfg['scalars.int'])
+
+    with pytest.raises(pyc.KeyError):
+        len(cfg['no-such-key'])
+
+
+def test_keys():
+    cfg = pyc.load_toml_str("""
+        [scalars]
+        flag = true
+        str = 'value'
+
+        [scalars.numeric]
+        int = 1234
+        flt1 = 1.0
+        flt2 = -1e3
+
+        [scalars.dates]
+        day = 2023-02-12
+        time = 08:30:00
+
+        [lists]
+        lst_numeric = [-42, 3, 1.5]
+        """)
+    assert 2 == len(cfg)
+    keys = sorted(cfg.keys())
+    assert 2 == len(keys)
+    assert 'lists' == keys[0]
+    assert 'scalars' == keys[1]
+
+    assert 1 == len(cfg['lists'])
+    keys = cfg['lists'].keys()
+    assert 1 == len(keys)
+    assert keys[0] == 'lst_numeric'
+
+    assert 4 == len(cfg['scalars'])
+    keys = cfg['scalars'].keys()
+    assert 4 == len(keys)
+    assert 'flag' in keys
+    assert 'str' in keys
+    assert 'numeric' in keys
+    assert 'dates' in keys
+
+    assert 3 == len(cfg['scalars']['numeric'])
+    assert 3 == len(cfg['scalars.numeric'])
+    tmp = cfg['scalars']['numeric'].keys()
+    keys = cfg['scalars.numeric'].keys()
+    assert tmp == keys
+    assert 3 == len(keys)
+    assert 'int' in keys
+    assert 'flt1' in keys
+    assert 'flt2' in keys
+
+    # Only bare keys (alphanumeric + '-'/'_') are supported
+    with pytest.raises(pyc.KeyError):
+        cfg[' invalid '] = 3
+
+    with pytest.raises(pyc.KeyError):
+        cfg[' inv.alid '] = 3
+    
+    with pytest.raises(pyc.KeyError):
+        cfg['inv.alid '] = 3
+
+    with pytest.raises(pyc.KeyError):
+        cfg['inv. alid'] = 3
+    
+    with pytest.raises(pyc.KeyError):
+        cfg['inv.al id'] = 3
+
+    with pytest.raises(pyc.KeyError):
+        cfg['inv alid'] = 3
+    
+    cfg['valid'] = 3
+    assert 'valid' in cfg
+    assert 3 == cfg['valid']
+
+def test_none():
+    cfg = pyc.load_toml_str("""
+        flag = true
+        str = 'value'
+        int = 1234
+
+        lst = [1, 2, 3]
+        """)
+    assert 4 == len(cfg)
+
+    with pytest.raises(pyc.TypeError):
+        cfg['flag'] = None
+    
+    # Note, however, that None will be converted by pybind11 to 'False' if
+    # used as method parameter:
+    cfg.set_bool('flag', None)
+    assert not cfg['flag']
+    
+    # Parameter conversion fails (pybind11) --> this will raise a standard
+    # TypeError:
+    with pytest.raises(TypeError):
+        cfg.set_int('int', None)
+    
+    # Parameter conversion fails (pybind11) --> this will raise a standard
+    # TypeError:
+    with pytest.raises(TypeError):
+        cfg.set_str('str', None)
+
+    with pytest.raises(pyc.TypeError):
+        cfg['lst[0]'] = None
+
+    with pytest.raises(pyc.TypeError):
+        cfg['none-lst'] = [1, 2, None]
+    
+    with pytest.raises(pyc.TypeError):
+        cfg['tbl'] = { "param": 1, "another": None }

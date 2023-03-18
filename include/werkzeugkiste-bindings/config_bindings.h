@@ -319,9 +319,57 @@ class ConfigWrapper {
   }
 
   static ConfigWrapper FromPyDict(const pybind11::dict &d) {
-    throw std::runtime_error{
-        "TODO Converting a py::dict to a Configuration is not yet "
-        "implemented!"};
+    ConfigWrapper instance{};
+    for (std::pair<pybind11::handle, pybind11::handle> item : d) {
+      if (!pybind11::isinstance<pybind11::str>(item.first)) {
+        std::string msg{"Dictionary keys must be strings, but got `"};
+        msg += pybind11::cast<std::string>(item.first.attr("__class__").attr("__name__"));
+        msg += "`!";
+        throw wzkcfg::TypeError{msg};
+      }
+      const std::string key = item.first.cast<std::string>();
+
+      if (!wzkcfg::IsValidKey(key, /*allow_dots=*/false)) {
+        std::string msg{"Dictionary key `"};
+        msg += key;
+        msg += "` is not a valid parameter name! Only alpha-numeric characters, hyphen and underscore are allowed.";
+        throw wzkcfg::TypeError{msg};
+      }
+
+      if (pybind11::isinstance<pybind11::str>(item.second)) {
+        instance.SetString(key, item.second.cast<std::string>());
+      } else if (pybind11::isinstance<pybind11::bool_>(item.second)) {
+        instance.SetBoolean(key, item.second.cast<bool>());
+      } else if (pybind11::isinstance<pybind11::int_>(item.second)) {
+        instance.SetInteger64(key, item.second.cast<int64_t>());
+      } else if (pybind11::isinstance<pybind11::float_>(item.second)) {
+        instance.SetDouble(key, item.second.cast<double>());
+      } else if (pybind11::isinstance<pybind11::list>(item.second)) {
+        instance.SetList(key, item.second.cast<pybind11::list>());
+      } else if (pybind11::isinstance<ConfigWrapper>(item.second)) {
+        instance.SetGroup(key, item.second.cast<ConfigWrapper>());
+      } else if (pybind11::isinstance<pybind11::dict>(item.second)) {
+        instance.SetGroup(key, FromPyDict(item.second.cast<pybind11::dict>()));
+      } else {
+        const std::string tp =
+          pybind11::cast<std::string>(item.second.attr("__class__").attr("__name__"));
+        if (tp.compare("date") == 0) {
+          instance.SetDate(key, item.second);
+        } else if (tp.compare("time") == 0) {
+          instance.SetTime(key, item.second);
+        } else if (tp.compare("datetime") == 0) {
+          instance.SetDateTime(key, item.second);
+        } else {
+          std::string msg{"Cannot convert a python object of type `"};
+          msg += tp;
+          msg += "` to a configuration parameter. Check dictionary key `";
+          msg += key;
+          msg += "`!";
+          throw wzkcfg::TypeError{msg};
+        }
+      }
+    }
+    return instance;
   }
 
   std::string ToTOMLString() const { return cfg_.ToTOML(); }
