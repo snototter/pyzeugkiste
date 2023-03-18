@@ -42,17 +42,21 @@ class ValidateTime(argparse.Action):
     * `HH:MM:SS` or `HHMMSS`
     """
     def __call__(self, parser, args, value, option_string=None):
+        val = None
+        if value is None:
+            raise ValueError('Time input cannot be `None`!')
         try: #TODO support millisec & microsec %S.123 or %S.123456
+            vstrip = value.strip().lower()
             if ':' in value:
-                if value.count(':') == 2:
-                    val = datetime.datetime.strptime(value, '%H:%M:%S')
+                if vstrip.count(':') == 2:
+                    val = datetime.datetime.strptime(value, '%H:%M:%S').time()
                 else:
-                    val = datetime.datetime.strptime(value, '%H:%M')
+                    val = datetime.datetime.strptime(value, '%H:%M').time()
             else:
-                if len(value) == 4:
-                    val = datetime.datetime.strptime(value, '%H%M')
+                if len(vstrip) == 4:
+                    val = datetime.datetime.strptime(value, '%H%M').time()
                 else:
-                    val = datetime.datetime.strptime(value, '%H%M%S')
+                    val = datetime.datetime.strptime(value, '%H%M%S').time()
         except ValueError:
             raise ValueError(f'Invalid time input "{value}". Supported formats are "HH:MM" or "HH:MM:SS" or "HHMM" or "HHMMSS".') from None
-        setattr(args, self.dest, val.time())
+        setattr(args, self.dest, val)

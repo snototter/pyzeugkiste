@@ -112,4 +112,49 @@ def test_date_parsing():
     assert isinstance(args.opt, datetime.date)
 
 
-#TODO test_time
+def test_time_parsing():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('tm', action=pzargs.ValidateTime)
+    parser.add_argument('--opt', action=pzargs.ValidateTime, default=None)
+
+    # Invalid inputs
+    with pytest.raises(ValueError):
+        parser.parse_args([''])
+
+    with pytest.raises(ValueError):
+        parser.parse_args(['invalid'])
+
+    with pytest.raises(ValueError):
+        parser.parse_args(['not-a-time'])
+
+    with pytest.raises(ValueError):
+        parser.parse_args(['08:69'])
+
+    with pytest.raises(ValueError):
+        parser.parse_args(['24:01'])
+
+    with pytest.raises(ValueError):
+        parser.parse_args(['08-01'])
+
+    with pytest.raises(ValueError):
+        parser.parse_args(['08:0123'])
+
+    # A None input is not allowed. `parse_args` does not invoke the action
+    # with the default value.
+    with pytest.raises(ValueError):
+        parser.parse_args([None])
+
+    args = parser.parse_args(['07:30'])
+    assert datetime.time(7, 30) == args.tm
+    assert args.opt is None
+    assert isinstance(args.tm, datetime.time)
+
+    args = parser.parse_args(['07:30:05'])
+    assert datetime.time(7, 30, 5) == args.tm
+    assert args.opt is None
+    assert isinstance(args.tm, datetime.time)
+
+    args = parser.parse_args(['0730', '--opt', '010203'])
+    assert datetime.time(7, 30) == args.tm
+    assert datetime.time(1, 2, 3) == args.opt
+    assert isinstance(args.opt, datetime.time)

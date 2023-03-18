@@ -37,10 +37,6 @@ Configuration Example
    [replacement-demo]
    # TODO string replacements
 
-   [fancy]
-   # TODO inhomogeneous lists (once std::variant support is added)
-   # TODO load nested configuration
-
 
 ...........
 Basic Usage
@@ -50,7 +46,7 @@ Basic Usage
    :caption: Basic usage
 
    from pyzeugkiste import config
-   cfg = config.Configuration.load_toml_file('path/to/example.toml')
+   cfg = config.load_toml_file('path/to/example.toml')
 
    # List all parameter names
    cfg.list_parameter_names()
