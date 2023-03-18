@@ -274,6 +274,12 @@ inline std::string PathStringFromPython(const pybind11::object &path) {
 
 class ConfigWrapper {
  public:
+  static ConfigWrapper LoadFile(const pybind11::object &filename) {
+    ConfigWrapper instance{};
+    instance.cfg_ = wzkcfg::LoadFile(PathStringFromPython(filename));
+    return instance;
+  }
+
   static ConfigWrapper LoadTOMLFile(const pybind11::object &filename) {
     ConfigWrapper instance{};
     instance.cfg_ = wzkcfg::LoadTOMLFile(PathStringFromPython(filename));
@@ -330,6 +336,10 @@ class ConfigWrapper {
 
   std::size_t Size() const { return cfg_.Size(); }
 
+  std::size_t ParameterSize(std::string_view key) const {
+    return cfg_.Size(key);
+  }
+
   wzkcfg::ConfigType Type(std::string_view key) const { return cfg_.Type(key); }
 
   wzkcfg::Configuration GetGroup(std::string_view key) const {
@@ -337,6 +347,7 @@ class ConfigWrapper {
   }
 
   void ReplaceConfig(wzkcfg::Configuration &&c) { cfg_ = std::move(c); }
+  void ReplaceConfig(const wzkcfg::Configuration &c) { cfg_ = c; }
 
   //---------------------------------------------------------------------------
   // Boolean
@@ -466,9 +477,7 @@ class ConfigWrapper {
     return cfg_.ReplaceStringPlaceholders(replacements);
   }
 
-  void LoadNestedTOML(std::string_view key) {
-    cfg_.LoadNestedTOMLConfiguration(key);
-  }
+  void LoadNested(std::string_view key) { cfg_.LoadNestedConfiguration(key); }
 
   bool AdjustRelativePaths(const pybind11::object &base_path,
                            const std::vector<std::string_view> &parameters) {
@@ -478,6 +487,67 @@ class ConfigWrapper {
  private:
   wzkcfg::Configuration cfg_{};
 };
+
+inline pybind11::object GroupToPyObj(
+    const pybind11::class_<ConfigWrapper> &pycfg,
+    const wzkcfg::Configuration &wcfg) {
+  pybind11::object obj = pycfg();
+  auto *ptr = obj.cast<ConfigWrapper *>();
+  ptr->ReplaceConfig(wcfg);
+  return obj;
+}
+
+inline pybind11::list ListToPyList(const pybind11::class_<ConfigWrapper> &pycfg,
+                                   const ConfigWrapper &wcfg,
+                                   std::string_view key) {
+  pybind11::list lst{};
+  const std::size_t num_el = wcfg.ParameterSize(key);
+
+  for (std::size_t idx = 0; idx < num_el; ++idx) {
+    std::string elem_key{key};
+    elem_key += '[';
+    elem_key += std::to_string(idx);
+    elem_key += ']';
+
+    switch (wcfg.Type(elem_key)) {
+      case wzkcfg::ConfigType::Boolean:
+        lst.append(wcfg.GetBoolean(elem_key));
+        break;
+
+      case wzkcfg::ConfigType::Integer:
+        lst.append(wcfg.GetInteger64(elem_key));
+        break;
+
+      case wzkcfg::ConfigType::FloatingPoint:
+        lst.append(wcfg.GetDouble(elem_key));
+        break;
+
+      case wzkcfg::ConfigType::String:
+        lst.append(wcfg.GetString(elem_key));
+        break;
+
+      case wzkcfg::ConfigType::List:
+        lst.append(ListToPyList(pycfg, wcfg, elem_key));
+        break;
+
+      case wzkcfg::ConfigType::Group:
+        lst.append(GroupToPyObj(pycfg, wcfg.GetGroup(elem_key)));
+        break;
+
+      case wzkcfg::ConfigType::Date:
+        lst.append(wcfg.GetDate(elem_key));
+        break;
+
+      case wzkcfg::ConfigType::Time:
+        lst.append(wcfg.GetTime(elem_key));
+        break;
+
+      case wzkcfg::ConfigType::DateTime:
+        lst.append(wcfg.GetDateTime(key));
+    }
+  }
+  return lst;
+}
 
 inline void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg) {
   //---------------------------------------------------------------------------
@@ -991,17 +1061,11 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
           case wzkcfg::ConfigType::String:
             return pybind11::str(self.GetString(key));
 
-            // case wzkcfg::ConfigType::List:
-            // return pybind11::list();
+          case wzkcfg::ConfigType::List:
+            return ListToPyList(cfg, self, key);
 
-          case wzkcfg::ConfigType::Group: {
-            pybind11::object obj = cfg();
-            auto *ptr = obj.cast<ConfigWrapper *>();
-            ptr->ReplaceConfig(self.GetGroup(key));
-            return obj;
-          }
-            // WZKLOG_CRITICAL("TODO not yet implemented!");
-            // return pybind11::dict();
+          case wzkcfg::ConfigType::Group:
+            return GroupToPyObj(cfg, self.GetGroup(key));
 
           case wzkcfg::ConfigType::Date:
             return self.GetDate(key);
@@ -1012,16 +1076,16 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
           case wzkcfg::ConfigType::DateTime:
             return self.GetDateTime(key);
 
-          default:
-            // TODO
-            throw std::runtime_error(
-                "Accessing other types (list, groups, date, ...) is not yet "
-                "implemented!");
+            // default:
+            //   // TODO
+            //   throw std::runtime_error(
+            //       "Accessing other types (list, groups, date, ...) is not yet
+            //       " "implemented!");
         }
         return pybind11::none();
       },
-      "Returns the parameter value.", pybind11::arg("key"));
-  // TODO doc: currently, only scalars
+      "Returns a copy of the parameter value.", pybind11::arg("key"));
+
   // type change is not supported
   cfg.def(
       "__setitem__",
@@ -1294,22 +1358,22 @@ inline void RegisterConfigUtilities(pybind11::class_<ConfigWrapper> &cfg) {
           doc_string.c_str(), pybind11::arg("placeholders"));
 
   doc_string = R"doc(
-      Loads a nested `TOML <https://toml.io/en/>`__ configuration.
+      Loads a nested configuration.
 
       For example, if the configuration had a field ``"storage"``, which
       should be defined in a separate (*e.g.* machine-dependent) configuration
       file, it could be defined in the main configuration simply
-      as ``storage = "path/to/conf.toml"``.
+      as ``storage = "path/to/conf.toml"`` or ``storage = "path/to/conf.json"``.
 
-      This function will then load the `TOML <https://toml.io/en/>`__
-      configuration and replace the ``storage`` parameter by the loaded
-      configuration. Suppose that ``path/to/conf.toml`` defines the parameters
+      This function will then load the configuration and replace the
+      ``storage`` parameter by the loaded configuration (*i.e.* parameter group).
+      Suppose that ``path/to/conf.toml`` defines the parameters
       ``location = ...`` and ``duration = ...``.
       Then, after loading, these parameters can be accessed as
       ``"storage.location"`` and ``"storage.duration"``, respectively.
 
       **Corresponding C++ API:**
-      ``werkzeugkiste::config::Configuration::LoadNestedTOMLConfiguration``.
+      ``werkzeugkiste::config::Configuration::LoadNestedConfiguration``.
 
       Raises:
         :class:`~pyzeugkiste.config.ParseError` Upon parsing errors, such as
@@ -1324,8 +1388,8 @@ inline void RegisterConfigUtilities(pybind11::class_<ConfigWrapper> &cfg) {
           of the nested `TOML <https://toml.io/en/>`__ configuration (must
           be of type string).
       )doc";
-  cfg.def("load_nested_toml", &ConfigWrapper::LoadNestedTOML,
-          doc_string.c_str(), pybind11::arg("key"));
+  cfg.def("load_nested_toml", &ConfigWrapper::LoadNested, doc_string.c_str(),
+          pybind11::arg("key"));
 
   doc_string = R"doc(
       Adjusts string parameters which hold relative file paths.
@@ -1495,12 +1559,10 @@ inline void RegisterConfiguration(pybind11::module &m) {
   cfg.def("__str__",
           [m](const detail::ConfigWrapper &c) {
             std::ostringstream s;
-            s << m.attr("__name__").cast<std::string>() << ".Configuration";
-            // TODO
+            const std::size_t sz = c.Size();
+            s << "Configuration(" << sz
+              << ((sz == 1) ? " parameter" : " parameters") << ')';
             return s.str();
-            //  s << l;
-            //  return s.str();
-            // return "TODO(ConfigWrapper::ToString)";
           })
       .def("__repr__", [m](const detail::ConfigWrapper &c) {
         std::ostringstream s;
@@ -1521,6 +1583,15 @@ inline void RegisterConfiguration(pybind11::module &m) {
   // Loading a configuration
 
   // TODO generic load (deduces type from extension)
+  doc_string = R"doc(
+    Loads a configuration file.
+
+    The configuration type will be deduced from the file extension, *i.e.*
+    `.toml`, `.json`, or `.cfg`. For JSON files, the default
+    :class:`NullValuePolicy` will be used, see :meth:`load_json_file`.
+  )doc";
+  m.def("load", &detail::ConfigWrapper::LoadFile, doc_string.c_str(),
+        pybind11::arg("filename"));
   // TODO document exceptions
   m.def("load_toml_str", &detail::ConfigWrapper::LoadTOMLString,
         "Loads the configuration from a `TOML <https://toml.io/en/>`__ string.",

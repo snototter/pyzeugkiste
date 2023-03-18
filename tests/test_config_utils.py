@@ -6,7 +6,7 @@ from pyzeugkiste import config as pyc
 # TODO test keys/parameter_names
 # TODO test adjust paths
 # TODO test placeholders
-# TODO test loading nested TOML
+# TODO test load_nested
 
 def test_placeholders():
     cfg = pyc.load_toml_str("""

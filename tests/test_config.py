@@ -261,7 +261,6 @@ def test_floating_point():
 # TODO test_str
 # TODO test_time
 # TODO test_group
-# TODO test_list
 
 def test_date():
     with pytest.raises(pyc.ParseError):
@@ -462,3 +461,43 @@ def test_keys():
 #         """)
 #     cnt = sum([1 for _ in cfg])
 #     assert 3 == cnt
+
+def test_list():
+    cfg = pyc.load_toml_str("""
+        numbers = [1, 2, 3]
+        mixed = [true, 1.5, 'value']
+
+        nested = [
+            'str',
+            123,
+            [1, 2, 3],
+            { name = 'test', flt = 2.5}
+        ]
+        """)
+    assert 3 == len(cfg)
+
+    assert isinstance(cfg['numbers'], list)
+    assert 3 == len(cfg['numbers'])
+
+    # The configuration will return a *copy*. Changing it won't work:
+    assert cfg['numbers'][2] == 3
+    cfg['numbers'][2] = 17
+    assert cfg['numbers'][2] == 3
+
+    assert isinstance(cfg['nested'], list)
+
+    assert isinstance(cfg['nested[0]'], str)
+    assert isinstance(cfg['nested'][0], str)
+
+    assert isinstance(cfg['nested[1]'], int)
+    assert isinstance(cfg['nested'][1], int)
+
+    assert isinstance(cfg['nested[2]'], list)
+    assert isinstance(cfg['nested'][2], list)
+    assert 3 == len(cfg['nested'][2])
+
+    assert isinstance(cfg['nested[3]'], type(cfg))
+    assert isinstance(cfg['nested'][3], type(cfg))
+    assert 2 == len(cfg['nested'][3])
+    assert 'name' in cfg['nested'][3]
+    assert 'flt' in cfg['nested'][3]
