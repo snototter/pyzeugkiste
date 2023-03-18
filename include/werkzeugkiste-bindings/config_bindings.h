@@ -124,7 +124,7 @@ now_utc.utcoffset() -> timedelta
 
 namespace werkzeugkiste::bindings {
 namespace detail {
-inline wzkcfg::date PyObjToDateUnchecked(const pybind11::object &obj) {
+inline wzkcfg::date PyObjToDateUnchecked(pybind11::handle obj) {
   const int year = obj.attr("year").cast<int>();
   const int month = obj.attr("month").cast<int>();
   const int day = obj.attr("day").cast<int>();
@@ -133,7 +133,7 @@ inline wzkcfg::date PyObjToDateUnchecked(const pybind11::object &obj) {
                       static_cast<uint_fast8_t>(day)};
 }
 
-inline wzkcfg::time PyObjToTimeUnchecked(const pybind11::object &obj) {
+inline wzkcfg::time PyObjToTimeUnchecked(pybind11::handle obj) {
   const int hour = obj.attr("hour").cast<int>();
   const int minute = obj.attr("minute").cast<int>();
   const int second = obj.attr("second").cast<int>();
@@ -144,7 +144,7 @@ inline wzkcfg::time PyObjToTimeUnchecked(const pybind11::object &obj) {
                       static_cast<uint_fast32_t>(microsec * 1000)};
 }
 
-inline wzkcfg::date PyObjToDate(const pybind11::object &obj) {
+inline wzkcfg::date PyObjToDate(pybind11::handle obj) {
   if (pybind11::isinstance<pybind11::str>(obj)) {
     return wzkcfg::date{obj.cast<std::string>()};
   }
@@ -168,7 +168,7 @@ inline wzkcfg::date PyObjToDate(const pybind11::object &obj) {
   throw wzkcfg::TypeError(msg);
 }
 
-inline wzkcfg::time PyObjToTime(const pybind11::object &obj) {
+inline wzkcfg::time PyObjToTime(pybind11::handle obj) {
   if (pybind11::isinstance<pybind11::str>(obj)) {
     return wzkcfg::time{obj.cast<std::string>()};
   }
@@ -200,7 +200,7 @@ inline wzkcfg::time PyObjToTime(const pybind11::object &obj) {
   throw wzkcfg::TypeError(msg);
 }
 
-inline wzkcfg::date_time PyObjToDateTime(const pybind11::object &obj) {
+inline wzkcfg::date_time PyObjToDateTime(pybind11::handle obj) {
   if (pybind11::isinstance<pybind11::str>(obj)) {
     return wzkcfg::date_time{obj.cast<std::string>()};
   }
@@ -264,7 +264,7 @@ inline pybind11::object DateTimeToPyObj(const wzkcfg::date_time &dt) {
       dt.time.second, dt.time.nanosecond / 1000, timezone(offset_td));
 }
 
-inline std::string PathStringFromPython(const pybind11::object &path) {
+inline std::string PathStringFromPython(pybind11::handle path) {
   if (pybind11::isinstance<pybind11::str>(path)) {
     return path.cast<std::string>();
   } else {
@@ -274,13 +274,13 @@ inline std::string PathStringFromPython(const pybind11::object &path) {
 
 class ConfigWrapper {
  public:
-  static ConfigWrapper LoadFile(const pybind11::object &filename) {
+  static ConfigWrapper LoadFile(pybind11::handle filename) {
     ConfigWrapper instance{};
     instance.cfg_ = wzkcfg::LoadFile(PathStringFromPython(filename));
     return instance;
   }
 
-  static ConfigWrapper LoadTOMLFile(const pybind11::object &filename) {
+  static ConfigWrapper LoadTOMLFile(pybind11::handle filename) {
     ConfigWrapper instance{};
     instance.cfg_ = wzkcfg::LoadTOMLFile(PathStringFromPython(filename));
     return instance;
@@ -292,7 +292,7 @@ class ConfigWrapper {
     return instance;
   }
 
-  static ConfigWrapper LoadJSONFile(const pybind11::object &filename) {
+  static ConfigWrapper LoadJSONFile(pybind11::handle filename) {
     // TODO support NullValuePolicy
     ConfigWrapper instance{};
     instance.cfg_ = wzkcfg::LoadJSONFile(PathStringFromPython(filename));
@@ -306,7 +306,7 @@ class ConfigWrapper {
     return instance;
   }
 
-  static ConfigWrapper LoadLibconfigFile(const pybind11::object &filename) {
+  static ConfigWrapper LoadLibconfigFile(pybind11::handle filename) {
     ConfigWrapper instance{};
     instance.cfg_ = wzkcfg::LoadLibconfigFile(PathStringFromPython(filename));
     return instance;
@@ -316,6 +316,12 @@ class ConfigWrapper {
     ConfigWrapper instance{};
     instance.cfg_ = wzkcfg::LoadLibconfigString(lcfg_str);
     return instance;
+  }
+
+  static ConfigWrapper FromPyDict(const pybind11::dict &d) {
+    throw std::runtime_error{
+        "TODO Converting a py::dict to a Configuration is not yet "
+        "implemented!"};
   }
 
   std::string ToTOMLString() const { return cfg_.ToTOML(); }
@@ -409,7 +415,7 @@ class ConfigWrapper {
   //---------------------------------------------------------------------------
   // Date
 
-  void SetDate(std::string_view key, const pybind11::object &value) {
+  void SetDate(std::string_view key, pybind11::handle value) {
     const wzkcfg::date d = PyObjToDate(value);
     cfg_.SetDate(key, d);
   }
@@ -419,7 +425,7 @@ class ConfigWrapper {
   }
 
   pybind11::object GetDateOr(std::string_view key,
-                             const pybind11::object &default_value) const {
+                             pybind11::handle default_value) const {
     const wzkcfg::date d = PyObjToDate(default_value);
     return DateToPyObj(cfg_.GetDateOr(key, d));
   }
@@ -427,7 +433,7 @@ class ConfigWrapper {
   //---------------------------------------------------------------------------
   // Time
 
-  void SetTime(std::string_view key, const pybind11::object &value) {
+  void SetTime(std::string_view key, pybind11::handle value) {
     const wzkcfg::time t = PyObjToTime(value);
     cfg_.SetTime(key, t);
   }
@@ -437,7 +443,7 @@ class ConfigWrapper {
   }
 
   pybind11::object GetTimeOr(std::string_view key,
-                             const pybind11::object &default_value) const {
+                             pybind11::handle default_value) const {
     const wzkcfg::time t = PyObjToTime(default_value);
     return TimeToPyObj(cfg_.GetTimeOr(key, t));
   }
@@ -445,7 +451,7 @@ class ConfigWrapper {
   //---------------------------------------------------------------------------
   // DateTime
 
-  void SetDateTime(std::string_view key, const pybind11::object &value) {
+  void SetDateTime(std::string_view key, pybind11::handle value) {
     const wzkcfg::date_time dt = PyObjToDateTime(value);
     cfg_.SetDateTime(key, dt);
   }
@@ -455,9 +461,68 @@ class ConfigWrapper {
   }
 
   pybind11::object GetDateTimeOr(std::string_view key,
-                                 const pybind11::object &default_value) const {
+                                 pybind11::handle default_value) const {
     const wzkcfg::date_time dt = PyObjToDateTime(default_value);
     return DateTimeToPyObj(cfg_.GetDateTimeOr(key, dt));
+  }
+
+  //---------------------------------------------------------------------------
+  // Group
+  void SetGroup(std::string_view key, const ConfigWrapper &cfg) {
+    cfg_.SetGroup(key, cfg.cfg_);
+  }
+
+  //---------------------------------------------------------------------------
+  // List
+  void SetList(std::string_view key, const pybind11::list &lst) {
+    if (cfg_.Contains(key)) {
+      cfg_.ClearList(key);
+    } else {
+      cfg_.CreateList(key);
+    }
+    // TODO wzk: CreateList should take care of append vs create
+
+    for (pybind11::handle value : lst) {
+      const std::string tp =
+          pybind11::cast<std::string>(value.attr("__class__").attr("__name__"));
+
+      if (pybind11::isinstance<pybind11::str>(value)) {
+        cfg_.Append(key, value.cast<std::string>());
+      } else if (pybind11::isinstance<pybind11::bool_>(value)) {
+        cfg_.Append(key, value.cast<bool>());
+      } else if (pybind11::isinstance<pybind11::int_>(value)) {
+        cfg_.Append(key, value.cast<int64_t>());
+      } else if (pybind11::isinstance<pybind11::float_>(value)) {
+        cfg_.Append(key, value.cast<double>());
+      } else if (pybind11::isinstance<pybind11::list>(value)) {
+        std::size_t sz = cfg_.Size(key);
+        cfg_.AppendList(key);
+        std::string elem_key{key};
+        elem_key += '[';
+        elem_key += std::to_string(sz);
+        elem_key += ']';
+        SetList(elem_key, value.cast<pybind11::list>());
+      } else if (pybind11::isinstance<ConfigWrapper>(value)) {
+        cfg_.Append(key, value.cast<ConfigWrapper>().cfg_);
+      } else if (pybind11::isinstance<pybind11::dict>(value)) {
+        cfg_.Append(key, FromPyDict(value.cast<pybind11::dict>()).cfg_);
+      } else {
+        if (tp.compare("date") == 0) {
+          cfg_.Append(key, PyObjToDate(value));
+        } else if (tp.compare("time") == 0) {
+          cfg_.Append(key, PyObjToTime(value));
+        } else if (tp.compare("datetime") == 0) {
+          cfg_.Append(key, PyObjToDateTime(value));
+        } else {
+          std::string msg{"Cannot append a python object of type `"};
+          msg += tp;
+          msg += "` to list `";
+          msg += key;
+          msg += "`!";
+          throw wzkcfg::TypeError{msg};
+        }
+      }
+    }
   }
 
   //---------------------------------------------------------------------------
@@ -479,7 +544,7 @@ class ConfigWrapper {
 
   void LoadNested(std::string_view key) { cfg_.LoadNestedConfiguration(key); }
 
-  bool AdjustRelativePaths(const pybind11::object &base_path,
+  bool AdjustRelativePaths(pybind11::handle base_path,
                            const std::vector<std::string_view> &parameters) {
     cfg_.AdjustRelativePaths(PathStringFromPython(base_path), parameters);
   }
@@ -500,6 +565,9 @@ inline pybind11::object GroupToPyObj(
 inline pybind11::list ListToPyList(const pybind11::class_<ConfigWrapper> &pycfg,
                                    const ConfigWrapper &wcfg,
                                    std::string_view key) {
+  // TODO nice-to-have: create a custom readonly_list, so users can't run into
+  // bugs like: cfg['lst'][3] = 'this will NOT change the parameter!'
+
   pybind11::list lst{};
   const std::size_t num_el = wcfg.ParameterSize(key);
 
@@ -543,7 +611,7 @@ inline pybind11::list ListToPyList(const pybind11::class_<ConfigWrapper> &pycfg,
         break;
 
       case wzkcfg::ConfigType::DateTime:
-        lst.append(wcfg.GetDateTime(key));
+        lst.append(wcfg.GetDateTime(elem_key));
     }
   }
   return lst;
@@ -1030,7 +1098,7 @@ void GenericScalarSetterUtil(ConfigWrapper &cfg, std::string_view key,
 }
 
 template <typename T>
-T ExtractPythonNumber(const pybind11::object &obj, const std::string &err_msg) {
+T ExtractPythonNumber(pybind11::handle obj, const std::string &err_msg) {
   if (pybind11::isinstance<pybind11::int_>(obj)) {
     return wzkcfg::checked_numcast<T>(obj.cast<int64_t>());
   }
@@ -1128,18 +1196,22 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
               }
               break;
 
-              // TODO list
-              // case wzkcfg::ConfigType::List:
+            case wzkcfg::ConfigType::List:
+              if (pybind11::isinstance<pybind11::list>(value)) {
+                self.SetList(key, value.cast<pybind11::list>());
+                return;
+              }
+              break;
 
-              // TODO group
-              // case wzkcfg::ConfigType::Group: {
-              //   pybind11::object obj = cfg();
-              //   auto *ptr = obj.cast<ConfigWrapper *>();
-              //   ptr->ReplaceConfig(self.GetGroup(key));
-              //   return obj;
-              // }
-              // WZKLOG_CRITICAL("TODO not yet implemented!");
-              // return pybind11::dict();
+            case wzkcfg::ConfigType::Group:
+              if (pybind11::isinstance<pybind11::dict>(value)) {
+                self.SetGroup(key, ConfigWrapper::FromPyDict(
+                                       value.cast<pybind11::dict>()));
+              } else if (pybind11::isinstance<ConfigWrapper>(value)) {
+                self.SetGroup(key, value.cast<ConfigWrapper>());
+                return;
+              }
+              break;
 
             case wzkcfg::ConfigType::Date:
               GenericScalarSetterUtil<wzkcfg::date>(self, key, value);
@@ -1166,15 +1238,12 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
           } else if (pybind11::isinstance<pybind11::float_>(value)) {
             GenericScalarSetterUtil<double>(self, key, value.cast<double>());
           } else if (pybind11::isinstance<pybind11::list>(value)) {
-            // TODO implement - what about inhomogeneous lists?
-            WZKLOG_ERROR("Input value for `{}` is a list - not yet supported",
-                         key);
-            throw std::runtime_error{"Not yet implemented"};
+            self.SetList(key, value.cast<pybind11::list>());
           } else if (pybind11::isinstance<pybind11::dict>(value)) {
-            // TODO raise error or convert to Configuration, then SetGroup!
-            WZKLOG_ERROR("Input value for `{}` is a dict - not yet supported",
-                         key);
-            throw std::runtime_error{"Not yet implemented"};
+            self.SetGroup(
+                key, ConfigWrapper::FromPyDict(value.cast<pybind11::dict>()));
+          } else if (pybind11::isinstance<ConfigWrapper>(value)) {
+            self.SetGroup(key, value.cast<ConfigWrapper>());
           } else {
             if (tp.compare("date") == 0) {
               GenericScalarSetterUtil<wzkcfg::date>(self, key, value);
@@ -1187,7 +1256,7 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
               msg += key;
               msg += "`) from python type `";
               msg += tp;
-              msg += "` is not yet supported!";
+              msg += "` is not supported!";
 
               throw wzkcfg::TypeError(msg);
             }
@@ -1555,20 +1624,28 @@ inline void RegisterConfiguration(pybind11::module &m) {
       "Checks for inequality, see :meth:`__eq__` for details.",
       pybind11::arg("other"));
 
-  // TODO __str__ and __repr__, e.g. (x 1st level keys, y parameters in total)
   cfg.def("__str__",
-          [m](const detail::ConfigWrapper &c) {
+          [cfg](const detail::ConfigWrapper &c) {
             std::ostringstream s;
+            const std::string modname =
+                cfg.attr("__module__").cast<std::string>();
+            if (!modname.empty()) {
+              s << modname << '.';
+            }
+
             const std::size_t sz = c.Size();
             s << "Configuration(" << sz
               << ((sz == 1) ? " parameter" : " parameters") << ')';
             return s.str();
           })
-      .def("__repr__", [m](const detail::ConfigWrapper &c) {
-        std::ostringstream s;
-        s << m.attr("__name__").cast<std::string>() << ".Configuration()";
-        // TODO x parameters, ...
-        return s.str();
+      .def("__repr__", [](const detail::ConfigWrapper &c) {
+        return c.ToTOMLString();
+        // return c.attr("__name__").cast<std::string>();
+        //  return cfg.attr("__name__").cast<std::string>();
+        //  std::ostringstream s;
+        //  s << m.attr("__name__").cast<std::string>() << ".Configuration()";
+        //  // TODO x parameters, ...
+        //  return s.str();
       });
 
   cfg.def("__contains__", &detail::ConfigWrapper::Contains,
@@ -1582,16 +1659,26 @@ inline void RegisterConfiguration(pybind11::module &m) {
   //---------------------------------------------------------------------------
   // Loading a configuration
 
-  // TODO generic load (deduces type from extension)
   doc_string = R"doc(
     Loads a configuration file.
 
     The configuration type will be deduced from the file extension, *i.e.*
     `.toml`, `.json`, or `.cfg`. For JSON files, the default
     :class:`NullValuePolicy` will be used, see :meth:`load_json_file`.
+
+    Args:
+      filename: Path to the configuration file, can either be a :class:`str` or
+        any object that can be represented as a :class:`str`. For example, a
+        :class:`pathlib.Path` is also a valid input parameter.
+
+    Raises:
+      :class:`~pyzeugkiste.config.ParseError`: If a parsing error occured, *e.g.* the
+          file does not exist, the configuration type cannot be deduced, there are
+          syntax errors in the file, *etc.*
   )doc";
   m.def("load", &detail::ConfigWrapper::LoadFile, doc_string.c_str(),
         pybind11::arg("filename"));
+
   // TODO document exceptions
   m.def("load_toml_str", &detail::ConfigWrapper::LoadTOMLString,
         "Loads the configuration from a `TOML <https://toml.io/en/>`__ string.",

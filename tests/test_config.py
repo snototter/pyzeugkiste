@@ -501,3 +501,37 @@ def test_list():
     assert 2 == len(cfg['nested'][3])
     assert 'name' in cfg['nested'][3]
     assert 'flt' in cfg['nested'][3]
+
+    # Lists cannot be replaced by scalars
+    with pytest.raises(pyc.TypeError):
+        cfg['nested'] = 3
+
+    with pytest.raises(pyc.TypeError):
+        cfg['nested'] = 'a string'
+
+    # Lists can be replaced by any other list
+    cfg['nested'] = []
+    assert len(cfg['nested']) == 0
+
+    lst = [1, True, 3.5, 'str', datetime.date.today(), datetime.datetime.now()]
+    cfg['nested'] = lst
+    assert lst == cfg['nested']
+
+    lst = [1, True, 'str', ['a', 'nested', 'lst']]
+    cfg['nested'] = lst
+    assert lst == cfg['nested']
+
+    # The list can also contain Configuration instances
+    another_cfg = pyc.Configuration()
+    another_cfg['name'] = 'value'
+    another_cfg['age'] = 23
+    another_cfg['date'] = datetime.date.today()
+
+    lst = [another_cfg, 1, True]
+    cfg['nested'] = lst
+    assert lst == cfg['nested']
+
+    # TODO WIP - nested dicts are not yet supported
+    lst = [1, 2, {"foo": "bar", 3: "value"}]
+    cfg['nested'] = lst
+    assert lst == cfg['nested']
