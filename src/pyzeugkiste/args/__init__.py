@@ -5,13 +5,15 @@ import datetime
 
 class ValidateDate(argparse.Action):
     """
-    Action class for `argparse` to parse command line parameters into a valid
-    `datetime.date` object.
+    Action class for :py:mod:`argparse` to parse command line parameters into a valid
+    :class:`datetime.date` object.
 
-    A date can be specified by:
-    * `YYYY-MM-DD`
-    * `DD.MM.YYYY`
-    * Special strings: `today` and `yesterday`
+    A date can be specified as:
+
+    * ``YYYY-MM-DD``
+    * ``DD.MM.YYYY``
+    * Special strings: ``today`` and ``yesterday``
+
     """
     def __call__(self, parser, args, value, option_string=None):
         val = None
@@ -34,12 +36,13 @@ class ValidateDate(argparse.Action):
 
 class ValidateTime(argparse.Action):
     """
-    Action class for `argparse` to parse command line parameters into a valid
-    `datetime.time` object.
+    Action class for :py:mod:`argparse` to parse command line parameters into a valid
+    :class:`datetime.date` object.
 
-    A time can be specified by:
-    * `HH:MM` or `HHMM`
-    * `HH:MM:SS` or `HHMMSS`
+    A time can be specified as:
+    
+    * ``HH:MM`` or ``HHMM``
+    * ``HH:MM:SS`` or ``HHMMSS``
     """
     def __call__(self, parser, args, value, option_string=None):
         val = None

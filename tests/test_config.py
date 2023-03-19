@@ -508,6 +508,18 @@ def test_list():
     assert 'value' == cfg['nested[2].str']
 
 
+def test_tuple():
+    cfg = pyc.load_toml_str("""numbers = [1, 2, 3]""")
+
+    cfg['from-tuple'] = (1, 2)
+    assert 'from-tuple' in cfg
+    assert isinstance(cfg['from-tuple'], list)
+
+    cfg['numbers'] = (42, )
+    assert len(cfg['numbers']) == 1
+    assert cfg['numbers'][0] == 42
+
+
 def test_group():
     cfg = pyc.load_toml_str("""
         numbers = [1, 2, 3]
@@ -542,7 +554,7 @@ def test_group():
     assert cfg['lvl1.lvl2.flt'] == pytest.approx(2)
 
 
-def test_dict():
+def test_dict_set():
     cfg_toml = pyc.load_toml_str("""
         int = 1
         
@@ -576,6 +588,9 @@ def test_dict():
     assert isinstance(cfg['dict'], type(cfg))
     cfg = cfg['dict']
     assert cfg == cfg_toml
+
+    tmp = cfg.to_dict()
+    assert tmp == pydict
 
     assert 2 == len(cfg)
     assert 1 == cfg['int']
@@ -611,6 +626,72 @@ def test_dict():
     lst = [1, 2, {"foo.invalid": "bar", "3": "value"}]
     with pytest.raises(pyc.TypeError):
         cfg['mixed-lst'] = lst
+
+
+def test_dict_get():
+    cfg = pyc.load_toml_str("""
+        [scalars]
+        int = 1
+        flt = 1e-17
+        flag = true
+        str = 'value'
+
+        [lists]
+        nums = [1, 2, 3.123]
+        mixed = [true, 42, 'value']
+        nested = [
+            [1, 2, 3],
+            17,
+            { str = 'value' }
+        ]
+
+        [tables]
+        t1 = { name = 'value' }
+        t2 = { name = 'foo', t2-1 = { name = 'bar' }}
+
+        [dates]
+        day = 2023-03-19
+        time = 19:48:00
+        dt = 2023-03-19T19:48:00+01:00
+        """)
+    d = cfg.to_dict()
+    assert len(d) == 4
+    assert 'scalars' in d
+    assert isinstance(d['scalars'], dict)
+    assert isinstance(d['scalars']['int'], int)
+    assert isinstance(d['scalars']['flt'], float)
+    assert isinstance(d['scalars']['flag'], bool)
+    assert isinstance(d['scalars']['str'], str)
+
+    assert 'lists' in d
+    assert isinstance(d['lists'], dict)
+    assert isinstance(d['lists']['nums'], list)
+    assert [1, 2, 3.123] == d['lists']['nums']
+
+    assert isinstance(d['lists']['mixed'], list)
+    assert [True, 42, 'value'] == d['lists']['mixed']
+
+    assert isinstance(d['lists']['nested'], list)
+    assert isinstance(d['lists']['nested'][0], list)
+    assert [1, 2, 3] == d['lists']['nested'][0]
+    assert isinstance(d['lists']['nested'][1], int)
+    assert isinstance(d['lists']['nested'][2], dict)
+
+    assert 'tables' in d
+    assert isinstance(d['tables'], dict)
+    assert isinstance(d['tables']['t1'], dict)
+    assert isinstance(d['tables']['t1']['name'], str)
+    assert isinstance(d['tables']['t2'], dict)
+    assert isinstance(d['tables']['t2']['name'], str)
+    assert isinstance(d['tables']['t2']['t2-1'], dict)
+    assert isinstance(d['tables']['t2']['t2-1']['name'], str)
+
+    assert 'dates' in d
+    assert isinstance(d['dates'], dict)
+    assert isinstance(d['dates']['day'], datetime.date)
+    assert isinstance(d['dates']['time'], datetime.time)
+    assert isinstance(d['dates']['dt'], datetime.datetime)
+    assert pytest.approx(3600) == d['dates']['dt'].utcoffset().total_seconds()
 
 
 def test_size():
@@ -726,6 +807,7 @@ def test_keys():
     assert 'valid' in cfg
     assert 3 == cfg['valid']
 
+
 def test_none():
     cfg = pyc.load_toml_str("""
         flag = true
@@ -762,3 +844,51 @@ def test_none():
     
     with pytest.raises(pyc.TypeError):
         cfg['tbl'] = { "param": 1, "another": None }
+
+
+def test_delete():
+    cfg = pyc.load_toml_str("""
+        str = 'value'
+
+        [scalars]
+        flag = true
+        str = 'value'
+
+        [scalars.numeric]
+        int = 1234
+        flt1 = 1.0
+        flt2 = -1e3
+
+        [lists]
+        lst = [-42, 3, 1.5]
+        """)
+    
+    with pytest.raises(pyc.KeyError):
+        del cfg['no-such-key']
+
+    del cfg['str']
+    assert 'str' not in cfg
+
+    # Will remove the group only from the COPY, not the original configuration!
+    del cfg['scalars']['numeric']
+    assert 'scalars.numeric' in cfg
+    del cfg['scalars.numeric']
+    assert 'scalars.numeric' not in cfg
+
+    # Similarly, lists are also returned by-value (i.e. we're deleting from
+    # a copy)
+    del cfg['lists']['lst'][2]
+    assert len(cfg['lists']['lst']) == 3
+
+    del cfg['lists.lst'][2]
+    assert len(cfg['lists.lst']) == 3
+
+    # Deleting a single element from a list is not allowed
+    with pytest.raises(pyc.KeyError):
+        del cfg['lists.lst[2]']
+    with pytest.raises(pyc.KeyError):
+        del cfg['lists.lst[0]']
+    
+    # But we can delete the whole list
+    del cfg['lists.lst']
+    assert 'lists.lst' not in cfg
