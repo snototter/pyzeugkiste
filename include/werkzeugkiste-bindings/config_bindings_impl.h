@@ -157,6 +157,10 @@ class ConfigWrapper {
   void ReplaceConfig(werkzeugkiste::config::Configuration &&c) { cfg_ = std::move(c); }
   void ReplaceConfig(const werkzeugkiste::config::Configuration &c) { cfg_ = c; }
 
+  void Delete(std::string_view key) {
+    cfg_.Delete(key);
+  }
+
   //---------------------------------------------------------------------------
   // Boolean
 

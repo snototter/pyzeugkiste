@@ -801,6 +801,15 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
       },
       "Sets the parameter value.", pybind11::arg("key"),
       pybind11::arg("value"));
+
+  // TODO raises KeyError
+  // list items cannot be deleted, only "full" (named) parameters
+  cfg.def(
+      "__delitem__",
+      [cfg](ConfigWrapper &self, std::string_view key) -> void {
+        self.Delete(key);
+      },
+      "Deletes a parameter.", pybind11::arg("key"));
 }
 
 inline void RegisterConfigUtilities(pybind11::class_<ConfigWrapper> &cfg) {

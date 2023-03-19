@@ -520,9 +520,6 @@ def test_tuple():
     assert cfg['numbers'][0] == 42
 
 
-
-
-
 def test_group():
     cfg = pyc.load_toml_str("""
         numbers = [1, 2, 3]
@@ -694,6 +691,7 @@ def test_dict_get():
     assert isinstance(d['dates']['day'], datetime.date)
     assert isinstance(d['dates']['time'], datetime.time)
     assert isinstance(d['dates']['dt'], datetime.datetime)
+    assert pytest.approx(3600) == d['dates']['dt'].utcoffset().total_seconds()
 
 
 def test_size():
@@ -846,3 +844,51 @@ def test_none():
     
     with pytest.raises(pyc.TypeError):
         cfg['tbl'] = { "param": 1, "another": None }
+
+
+def test_delete():
+    cfg = pyc.load_toml_str("""
+        str = 'value'
+
+        [scalars]
+        flag = true
+        str = 'value'
+
+        [scalars.numeric]
+        int = 1234
+        flt1 = 1.0
+        flt2 = -1e3
+
+        [lists]
+        lst = [-42, 3, 1.5]
+        """)
+    
+    with pytest.raises(pyc.KeyError):
+        del cfg['no-such-key']
+
+    del cfg['str']
+    assert 'str' not in cfg
+
+    # Will remove the group only from the COPY, not the original configuration!
+    del cfg['scalars']['numeric']
+    assert 'scalars.numeric' in cfg
+    del cfg['scalars.numeric']
+    assert 'scalars.numeric' not in cfg
+
+    # Similarly, lists are also returned by-value (i.e. we're deleting from
+    # a copy)
+    del cfg['lists']['lst'][2]
+    assert len(cfg['lists']['lst']) == 3
+
+    del cfg['lists.lst'][2]
+    assert len(cfg['lists.lst']) == 3
+
+    # Deleting a single element from a list is not allowed
+    with pytest.raises(pyc.KeyError):
+        del cfg['lists.lst[2]']
+    with pytest.raises(pyc.KeyError):
+        del cfg['lists.lst[0]']
+    
+    # But we can delete the whole list
+    del cfg['lists.lst']
+    assert 'lists.lst' not in cfg
