@@ -19,5 +19,6 @@ PyZeugKiste - Another Box of Python Tools
    :maxdepth: 3
 
    Package installation <installation>
+   Submodule args <apidoc-args>
    Submodule config <apidoc-config>
    Submodule geo <apidoc-geo>
