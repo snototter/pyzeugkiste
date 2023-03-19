@@ -151,7 +151,14 @@ void RegisterConfigUtilities(pybind11::class_<ConfigWrapper> &cfg);
 #include <werkzeugkiste-bindings/detail/config_bindings_access.h>
 
 namespace werkzeugkiste::bindings {
-inline void RegisterConfiguration(pybind11::module &m) {
+inline void RegisterConfigUtils(pybind11::module &main_module) {
+  pybind11::module m = main_module.def_submodule("_cfg");
+  m.doc() = R"doc(
+    Configuration file utils.
+
+    TODO summary
+    )doc";
+
   const std::string module_name = m.attr("__name__").cast<std::string>();
   const std::string config_name = std::string{module_name} + ".Configuration";
 

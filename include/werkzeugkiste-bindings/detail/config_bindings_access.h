@@ -1,5 +1,5 @@
-#ifndef WERKZEUGKISTE_BINDINGS_CONFIG_DETAIL_TYPES_H
-#define WERKZEUGKISTE_BINDINGS_CONFIG_DETAIL_TYPES_H
+#ifndef WERKZEUGKISTE_BINDINGS_CONFIG_DETAIL_ACCESS_H
+#define WERKZEUGKISTE_BINDINGS_CONFIG_DETAIL_ACCESS_H
 
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
@@ -926,4 +926,4 @@ inline void RegisterConfigUtilities(pybind11::class_<ConfigWrapper> &cfg) {
 }
 }  // namespace werkzeugkiste::bindings::detail
 
-#endif  // WERKZEUGKISTE_BINDINGS_CONFIG_DETAIL_TYPES_H
+#endif  // WERKZEUGKISTE_BINDINGS_CONFIG_DETAIL_ACCESS_H
