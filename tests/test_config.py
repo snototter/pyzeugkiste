@@ -508,6 +508,18 @@ def test_list():
     assert 'value' == cfg['nested[2].str']
 
 
+def test_tuple():
+    cfg = pyc.load_toml_str("""numbers = [1, 2, 3]""")
+
+    cfg['from-tuple'] = (1, 2)
+    assert 'from-tuple' in cfg
+    assert isinstance(cfg['from-tuple'], list)
+
+    cfg['numbers'] = (42, )
+    assert len(cfg['numbers']) == 1
+    assert cfg['numbers'][0] == 42
+
+
 def test_group():
     cfg = pyc.load_toml_str("""
         numbers = [1, 2, 3]

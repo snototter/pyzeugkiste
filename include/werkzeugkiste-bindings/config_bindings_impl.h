@@ -284,13 +284,14 @@ class ConfigWrapper {
 
   //---------------------------------------------------------------------------
   // List
-  void SetList(std::string_view key, const pybind11::list &lst) {
+  void SetList(std::string_view key, const pybind11::object &lst) {
     if (cfg_.Contains(key)) {
       cfg_.ClearList(key);
     } else {
       cfg_.CreateList(key);
     }
 
+    // Invoked with either list or tuple
     for (pybind11::handle value : lst) {
       const std::string tp =
           pybind11::cast<std::string>(value.attr("__class__").attr("__name__"));

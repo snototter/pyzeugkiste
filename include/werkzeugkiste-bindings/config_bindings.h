@@ -141,6 +141,7 @@ pybind11::list ListToPyList(
 pybind11::object GroupToPyObj(
     const pybind11::class_<ConfigWrapper> *cls_handle,
     const werkzeugkiste::config::Configuration &wcfg);
+
 }  // namespace werkzeugkiste::bindings::detail
 
 #include "config_bindings_impl.h"
@@ -730,8 +731,9 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
               break;
 
             case werkzeugkiste::config::ConfigType::List:
-              if (pybind11::isinstance<pybind11::list>(value)) {
-                self.SetList(key, value.cast<pybind11::list>());
+              if (pybind11::isinstance<pybind11::list>(value) ||
+                  pybind11::isinstance<pybind11::tuple>(value)) {
+                self.SetList(key, value);
                 return;
               }
               break;
@@ -770,8 +772,9 @@ inline void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg) {
             GenericScalarSetterUtil<int64_t>(self, key, value.cast<int64_t>());
           } else if (pybind11::isinstance<pybind11::float_>(value)) {
             GenericScalarSetterUtil<double>(self, key, value.cast<double>());
-          } else if (pybind11::isinstance<pybind11::list>(value)) {
-            self.SetList(key, value.cast<pybind11::list>());
+          } else if (pybind11::isinstance<pybind11::list>(value) ||
+                     pybind11::isinstance<pybind11::tuple>(value)) {
+            self.SetList(key, value);
           } else if (pybind11::isinstance<pybind11::dict>(value)) {
             self.SetGroup(
                 key, ConfigWrapper::FromPyDict(value.cast<pybind11::dict>()));
