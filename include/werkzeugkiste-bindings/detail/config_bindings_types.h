@@ -1,5 +1,5 @@
-#ifndef WERKZEUGKISTE_BINDINGS_CONFIG_IMPL_H
-#define WERKZEUGKISTE_BINDINGS_CONFIG_IMPL_H
+#ifndef WERKZEUGKISTE_BINDINGS_CONFIG_DETAIL_TYPES_H
+#define WERKZEUGKISTE_BINDINGS_CONFIG_DETAIL_TYPES_H
 
 #include <pybind11/chrono.h>
 #include <pybind11/operators.h>
@@ -638,4 +638,4 @@ inline std::string PyObjToPathString(pybind11::handle path) {
 
 }  // namespace werkzeugkiste::bindings::detail
 
-#endif  // WERKZEUGKISTE_BINDINGS_CONFIG_IMPL_H
+#endif  // WERKZEUGKISTE_BINDINGS_CONFIG_DETAIL_TYPES_H
