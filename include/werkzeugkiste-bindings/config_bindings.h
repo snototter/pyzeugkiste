@@ -1279,11 +1279,6 @@ inline void RegisterConfiguration(pybind11::module &m) {
   detail::RegisterGenericAccess(cfg);
 
   //---------------------------------------------------------------------------
-  // Getting/Setting lists/tuples/pairs
-
-  // TODO nested lists/numpy arrays (matrices)
-
-  //---------------------------------------------------------------------------
   // Special utils
   detail::RegisterConfigUtilities(cfg);
 
