@@ -22,3 +22,4 @@ PyZeugKiste - Another Box of Python Tools
    Submodule args <apidoc-args>
    Submodule config <apidoc-config>
    Submodule geo <apidoc-geo>
+   Submodule strings <apidoc-strings>

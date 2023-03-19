@@ -29,61 +29,36 @@ inline void RegisterStringUtils(pybind11::module &main_module) {
         &werkzeugkiste::strings::LevenshteinDistance,
         doc.c_str(), pybind11::arg("s1"), pybind11::arg("s2"));
 
-/*
-/// Clips the given URL string to include only the
-/// protocol and domain, *i.e.* server paths & parameters
-/// will be excluded.
-WERKZEUGKISTE_STRINGS_EXPORT
-std::string ClipUrl(const std::string& url);
+  doc = R"doc(
+    Clips the string if it exceeds the given length.
+    
+    Args:
+      string: The string.
+      length: The desired maximum length.
+      ellipsis: The ellipsis to be inserted where the string has been clipped.
+      pos: Where to clip the string & place the ellipsis: *Left* if ``< 0``,
+        *centered* if ``0``, *right* if ``> 0``.
+    )doc";
+  m.def("shorten",
+        &werkzeugkiste::strings::Shorten,
+        doc.c_str(), pybind11::arg("string"), pybind11::arg("length"),
+        pybind11::arg("pos") = -1, pybind11::arg("ellipsis") = "...");
 
-/// Sets `protocol` to the URL's protocol, e.g.
-/// `https://`, `rtp://`, ...
-/// Returns true if the `url` string contained a
-/// protocol part.
-WERKZEUGKISTE_STRINGS_EXPORT
-bool GetUrlProtocol(const std::string& url,
-                    std::string& protocol,    // NOLINT
-                    std::string& remainder);  // NOLINT
+  doc = R"doc(
+    Returns a slug representation of the string.
 
-/// Returns the URL after replacing any plaintext
-/// authentication data by the text `<auth>`.
-WERKZEUGKISTE_STRINGS_EXPORT
-std::string ObscureUrlAuthentication(const std::string& url);
+    TODO document all replacements and conversions.
 
-/// Returns a copy where all given characters have been removed.
-WERKZEUGKISTE_STRINGS_EXPORT
-std::string Remove(std::string_view s, std::initializer_list<char> chars);
+    Args:
+      string: The string to be slugified.
+      strip_dashes: If ``True``, the slug will contain no dashes.
+    )doc";
+  m.def("slugify",
+        &werkzeugkiste::strings::Slug,
+        doc.c_str(), pybind11::arg("string"),
+        pybind11::arg("strip_dashes") = false);
 
-/// Returns a copy where the given character has been removed.
-WERKZEUGKISTE_STRINGS_EXPORT
-std::string Remove(std::string_view s, char c);
-
-/// Returns a slug representation of the string.
-///
-/// The input will be converted to lower case & trimmed.
-/// The number sign/hash will be replaced by "nr". Any
-/// other non-alphanumeric symbols will be replaced by
-/// dashes.
-/// If `strip_dashes` is true, the remaining dashes will
-/// then also be stripped: e.g. ` img_dir` would
-/// become `imgdir`.
-WERKZEUGKISTE_STRINGS_EXPORT
-std::string Slug(std::string_view s, bool strip_dashes = false);
-
-/// Returns a string with length <= `desired_length`,
-/// where the customizable `ellipsis` has been inserted
-/// to indicate that the input string has been clipped.
-///
-/// Argument ellipsis_position specifies where the ellipsis
-/// will be placed:
-/// * `< 0`: Left
-/// * `0`: Centered
-/// * `> 0`: Right
-WERKZEUGKISTE_STRINGS_EXPORT
-std::string Shorten(std::string_view s, std::size_t desired_length,
-                    int ellipsis_position = -1,
-                    std::string_view ellipsis = "...");
-*/
+  // TODO add bindings for ClipURL, GetURLProtocol, ObscureURLAuthentication
 }
 }  // namespace werkzeugkiste::bindings
 
