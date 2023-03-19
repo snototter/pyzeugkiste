@@ -2,6 +2,7 @@
 #include <werkzeugkiste-bindings/config_bindings.h>
 #include <werkzeugkiste-bindings/line2d_bindings.h>
 #include <werkzeugkiste-bindings/vector_bindings.h>
+#include <werkzeugkiste-bindings/string_bindings.h>
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -35,20 +36,6 @@ void RegisterGeometryUtils(pybind11::module &m) {
   werkzeugkiste::bindings::RegisterLine2d(geo);
 }
 
-void RegisterConfigUtils(pybind11::module &m) {
-  pybind11::module cfg = m.def_submodule("_cfg");
-  cfg.doc() = R"doc(
-    Configuration file utils.
-
-    TODO summary
-    )doc";
-
-  // const std::string print_name =
-  //     std::string{MACRO_STRINGIFY(pyzeugkiste_PYMODULE_PRINT_NAME)}
-  //     + ".config";
-  werkzeugkiste::bindings::RegisterConfiguration(cfg);
-}
-
 ///----------------------------------------------------------------------------
 /// Module definition
 PYBIND11_MODULE(pyzeugkiste_PYMODULE_IDENTIFIER, m) {
@@ -60,10 +47,12 @@ PYBIND11_MODULE(pyzeugkiste_PYMODULE_IDENTIFIER, m) {
        * `config`
        * `files`
        * `geo`
+       * `strings`
     )doc";
 
   RegisterGeometryUtils(m);
-  RegisterConfigUtils(m);
+  werkzeugkiste::bindings::RegisterConfigUtils(m);
+  werkzeugkiste::bindings::RegisterStringUtils(m);
 
 #ifdef pyzeugkiste_VERSION_INFO
   m.attr("__version__") = MACRO_STRINGIFY(pyzeugkiste_VERSION_INFO);
