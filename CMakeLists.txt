@@ -59,7 +59,10 @@ set(pyzeugkiste_BINDINGS_PRINT_NAME ${SKBUILD_PROJECT_NAME})
 set(pyzeugkiste_HEADER_FILES
     include/werkzeugkiste-bindings/vector_bindings.h
     include/werkzeugkiste-bindings/line2d_bindings.h
-    include/werkzeugkiste-bindings/config_bindings.h)
+    include/werkzeugkiste-bindings/config_bindings.h
+    include/werkzeugkiste-bindings/detail/config_bindings_access.h
+    include/werkzeugkiste-bindings/detail/config_bindings_types.h
+    include/werkzeugkiste-bindings/string_bindings.h)
 
 # Source files
 set(pyzeugkiste_SOURCE_FILES src/pyzeugkiste_core.cpp)
