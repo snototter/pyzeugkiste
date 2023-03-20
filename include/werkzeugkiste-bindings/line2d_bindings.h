@@ -334,6 +334,11 @@ inline void RegisterLine2d(pybind11::module &m) {
   line.def("clip_segment_by_rectangle", &L::ClipLineSegmentByRectangle,
            doc.str().c_str(), pybind11::arg("top_left"), pybind11::arg("size"));
 
+  std::ostringstream().swap(doc);
+  doc << "Tilts the segment around its start point.";  // TODO doc
+  line.def("tilt_deg", &L::TiltDeg, doc.str().c_str(), pybind11::arg("angle"));
+  // TODO rad version
+
   // A 2d line can be initialized from a given tuple/list.
   pybind11::implicitly_convertible<pybind11::tuple, L>();
   pybind11::implicitly_convertible<pybind11::list, L>();
@@ -386,4 +391,4 @@ const;
 
 }  // namespace werkzeugkiste::bindings
 
-#endif // WERKZEUGKISTE_BINDINGS_GEOMETRY_LINE2D_H
+#endif  // WERKZEUGKISTE_BINDINGS_GEOMETRY_LINE2D_H
