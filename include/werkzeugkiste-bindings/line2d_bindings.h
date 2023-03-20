@@ -217,7 +217,7 @@ inline void RegisterLine2d(pybind11::module &m) {
 
   std::ostringstream().swap(doc);
   doc << R"docstr(
-        Returns the representation of this line in :math:`\\mathbb{P}^2`.
+        Returns the representation of this line in :math:`\mathbb{P}^2`.
 
         For more details on lines in projective space, refer to
         `Bob Fisher's CVonline <http://homepages.inf.ed.ac.uk/rbf/CVonline/LOCAL_COPIES/BEARDSLEY/node2.html>`__,
@@ -229,7 +229,7 @@ inline void RegisterLine2d(pybind11::module &m) {
       << R"docstr(
         Returns:
           The :class:`~viren2d.Vec3d` as the result of
-          :math:`\\text{pt1} \\times \\text{pt2}`.
+          :math:`\text{pt1} \times \text{pt2}`.
         )docstr";
   line.def("homogeneous", &L::HomogeneousForm, doc.str().c_str());
 
