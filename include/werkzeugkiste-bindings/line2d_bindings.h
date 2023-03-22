@@ -59,6 +59,11 @@ inline werkzeugkiste::geometry::Line2d Line2dFromList(
 
 inline void RegisterLine2d(pybind11::module &m) {
   using L = werkzeugkiste::geometry::Line2d;
+  // The module_name variable will hold the name of the internal C++ bindings,
+  // such as "pyzeugkiste._core._geo". This is not an issue for the docstrings,
+  // but would lead to less user-friendly error messages: Thus, wherever error
+  // messages/user notifications are required, the module name of the loaded
+  // python module will be used instead.
   const std::string module_name = m.attr("__name__").cast<std::string>();
 
   std::ostringstream doc;
@@ -85,8 +90,10 @@ inline void RegisterLine2d(pybind11::module &m) {
          "where ``pt1`` & ``pt2`` are the start and end points"
          "as :class:`~"
       << module_name << ".Vec2d`.\n";
-  line.def(pybind11::init<>([module_name](const pybind11::tuple &tpl) {
-             return Line2dFromTuple(tpl, module_name);
+  line.def(pybind11::init<>([line](const pybind11::tuple &tpl) {
+             const std::string modname =
+                 line.attr("__module__").cast<std::string>();
+             return Line2dFromTuple(tpl, modname);
            }),
            doc.str().c_str(), pybind11::arg("tpl"));
 
@@ -97,28 +104,39 @@ inline void RegisterLine2d(pybind11::module &m) {
          "where ``pt1`` & ``pt2`` are the start and end points"
          "as :class:`~"
       << module_name << ".Vec2d`.";
-  line.def(pybind11::init<>([module_name](const pybind11::list &lst) {
-             return Line2dFromList(lst, module_name);
+  line.def(pybind11::init<>([line](const pybind11::list &lst) {
+             const std::string modname =
+                 line.attr("__module__").cast<std::string>();
+             return Line2dFromList(lst, modname);
            }),
            doc.str().c_str(), pybind11::arg("lst"));
 
   line.def("__str__",
            [](const L &l) {
              std::ostringstream s;
-             s << l;
+             constexpr bool include_type = false;
+             constexpr int precision = 0;
+             s << "Line2d(" << l.From().ToString(include_type, precision)
+               << " --> " << l.To().ToString(include_type, precision) << ')';
              return s.str();
            })
-      .def("__repr__", [](const L &l) {
+      .def("__repr__", [line](const L &obj) {
         std::ostringstream s;
-        s << '<' << l << '>';
+        const std::string modname = line.attr("__module__").cast<std::string>();
+        if (!modname.empty()) {
+          s << modname << '.';
+        }
+        s << obj;
         return s.str();
       });
 
   std::ostringstream().swap(doc);
   doc << ":class:`~" << module_name << ".Line2d` instances can be pickled.";
   line.def(pybind11::pickle(&Line2dToTuple,
-                            [module_name](const pybind11::tuple &tpl) {
-                              return Line2dFromTuple(tpl, module_name);
+                            [line](const pybind11::tuple &tpl) {
+                              const std::string modname =
+                                  line.attr("__module__").cast<std::string>();
+                              return Line2dFromTuple(tpl, modname);
                             }),
            doc.str().c_str());
 
@@ -149,12 +167,7 @@ inline void RegisterLine2d(pybind11::module &m) {
       << ".Line2d.pt1` is left of\n:attr:`~" << module_name
       << ".Line2d.pt2`.\n\n"
          "If this line is vertical, the points will be sorted such that\n"
-         ":attr:`~"
-      << module_name
-      << ".Line2d.pt1` is above "
-         ":attr:`~"
-      << module_name
-      << ".Line2d.pt2`.\n\n"
+         "the y coordinates are in ascending order.\n\n"
          "**Corresponding C++ API:** ``"
       << module_name << "::Line2d::LeftToRight``.";
   line.def("left_to_right", &L::LeftToRight, doc.str().c_str());

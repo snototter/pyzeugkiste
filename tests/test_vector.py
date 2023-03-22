@@ -1,5 +1,5 @@
 import pytest
-import pyzeugkiste
+import pyzeugkiste  # Needed for the deserialization checks, i.e. eval(repr(x))
 from pyzeugkiste import geo as pzgeo
 import math
 import pickle
