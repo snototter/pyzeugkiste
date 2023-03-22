@@ -644,6 +644,33 @@ inline void RegisterVectorDivision(pybind11::class_<V> &vec,
   // Overloading `__idiv__` is not needed
 }
 
+template <class V>
+inline void RegisterVectorAngles(
+      pybind11::class_<V> &vec,
+      std::string_view module_name) {
+  using value_type = typename V::value_type;
+  using V_int32 = werkzeugkiste::geometry::Vec<value_type, V::ndim>;
+  using V_double = werkzeugkiste::geometry::Vec<double, V::ndim>;
+
+  const std::string fqn_type = std::string(module_name) + "." + V::TypeName();
+  std::string docstr = "Computes the angle :math:`\\in [0, 180]` between this and the other vector.\n\n"
+    "Args:\n"
+    "  other: The second " + fqn_type + "\n\n"
+    "Returns:\n  The angle :math:`\\in [0, 180]` in degrees.";
+  vec.def(
+    "angle_deg", &V::AngleDeg,
+    docstr.c_str(), pybind11::arg("other"));
+
+
+  docstr = "Computes the angle :math:`\\in [0, \\pi]` between this and the other vector.\n\n"
+    "Args:\n"
+    "  other: The second " + fqn_type + "\n\n"
+    "Returns:\n  The angle :math:`\\in [0, \\pi]` in radians.";
+  vec.def(
+    "angle_rad", &V::AngleRad,
+    docstr.c_str(), pybind11::arg("other"));
+}
+
 /// TODO doc
 /// module_name can be set, as it will be used to denote the type
 /// in docstrings and info/warning/error messages. Libary users will
@@ -950,6 +977,8 @@ void RegisterVector(pybind11::module &m) {
   RegisterVectorMultiplication(vec_cls, module_name);
   RegisterVectorDivision(vec_cls, module_name);
 
+  RegisterVectorAngles(vec_cls, module_name);
+
   // Specific for 2-dim vectors
   if constexpr (Dim == 2) {
     std::ostringstream().swap(doc);
@@ -981,7 +1010,71 @@ void RegisterVector(pybind11::module &m) {
         [](VC &self, Tp value) -> void { self.SetHeight(value); },
         doc.str().c_str());
 
-    // TODO add 2d specialties (perpendicular, rotate, etc)
+    //------------------------------------------------------------------------
+    // 2D Specialties
+
+    // We need lambdas due to the conditionally-enabled templates (standard
+    // py::overload_cast and manual static_cast<.....> aren't working)
+    std::ostringstream().swap(doc);
+    doc << "Returns the 90° clockwise rotated vector.\n\n"
+        "This method assumes that the coordinate system is right-handed and\n"
+        "is only supported for 2D vectors.";
+    vec_cls.def(
+        "perpendicular_cw", [](const VC &self) {
+          return self.PerpendicularClockwise();
+        },
+        doc.str().c_str());
+    
+    std::ostringstream().swap(doc);
+    doc << "Returns the 90° counterclockwise rotated vector.\n\n"
+        "This method assumes that the coordinate system is right-handed and\n"
+        "is only supported for 2D vectors.";
+    vec_cls.def(
+        "perpendicular_ccw", [](const VC &self) {
+          return self.PerpendicularCounterClockwise();
+        },
+        doc.str().c_str());
+    
+    // TODO rotate vector should be defined for all types, but always return
+    // a floating point type
+    if constexpr (std::is_floating_point_v<Tp>) {
+      std::ostringstream().swap(doc);
+      doc << "Returns a copy of this vector rotated around the reference point\n"
+          "by the given angle.\n\n"
+          "This method assumes that the coordinate system is right-handed and\n"
+          "is only supported for 2D vector specialization with floating point\n"
+          "value type.\n\n"
+          "Args:\n"
+          "  angle: Rotation angle in degrees.\n"
+          "  rotation_center: Reference point for rotation as :class:`~"
+          << module_name << '.' << VC::TypeName() << "`.";
+      vec_cls.def(
+          "rotate_deg", [](const VC &self, double angle, const VC &rot_ctr) {
+            return self.RotateDeg(rot_ctr, angle);
+          },
+          doc.str().c_str(),
+          pybind11::arg("angle"),
+          pybind11::arg("rotation_center") = VC{});
+
+      std::ostringstream().swap(doc);
+      doc << "Returns a copy of this vector rotated around the reference point\n"
+          "by the given angle.\n\n"
+          "This method assumes that the coordinate system is right-handed and\n"
+          "is only supported for 2D vector specialization with floating point\n"
+          "value type.\n\n"
+          "Args:\n"
+          "  angle: Rotation angle in radians.\n"
+          "  rotation_center: Reference point for rotation as :class:`~"
+          << module_name << '.' << VC::TypeName() << "`.";
+      vec_cls.def(
+          "rotate_rad", [](const VC &self, const VC &rot_ctr, double angle) {
+            return self.RotateRad(rot_ctr, angle);
+          },
+          doc.str().c_str(),
+          pybind11::arg("angle"),
+          pybind11::arg("rotation_center") = VC{});
+    }
+    // TODO add remaining 2d specialties
   }
 
   // Specific for 3-dim vectors

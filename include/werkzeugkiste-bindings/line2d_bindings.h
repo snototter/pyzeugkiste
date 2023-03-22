@@ -223,7 +223,7 @@ inline void RegisterLine2d(pybind11::module &m) {
   std::ostringstream().swap(doc);
   doc << "float: Length of the segment between :attr:`~" << module_name
       << ".Line2d.pt1`\n"
-         "  and :attr:`~viren2d.Line2d.pt2`.\n\n"
+         "  and :attr:`~" << module_name << ".Line2d.pt2`.\n\n"
          "  **Corresponding C++ API:** ``"
       << module_name << "::Line2d::Length``.";
   line.def_property_readonly("length", &L::Length, doc.str().c_str());
@@ -239,35 +239,74 @@ inline void RegisterLine2d(pybind11::module &m) {
         )docstr"
       << "\n\n**Corresponding C++ API:** ``" << module_name
       << "::Line2d::HomogeneousForm``.\n\n"
-      << R"docstr(
-        Returns:
-          The :class:`~viren2d.Vec3d` as the result of
-          :math:`\text{pt1} \times \text{pt2}`.
-        )docstr";
+         "Returns:\n"
+         "  The :class:`~" << module_name << ".Vec3d` as the result of"
+         "  :math:`\text{pt1} \times \text{pt2}`.";
   line.def("homogeneous", &L::HomogeneousForm, doc.str().c_str());
 
   std::ostringstream().swap(doc);
   doc << "Returns the angle :math:`\\alpha \\in [0, \\pi]` between this line "
-         "and the\n"
-         "given directional vector.\n\n"
+         "and the\ngiven directional vector.\n\n"
          "**Corresponding C++ API:** ``"
       << module_name << "::Line2d::AngleRad``.";
-  line.def("angle_rad", &L::AngleRad, doc.str().c_str(), pybind11::arg("vec"));
+  line.def(
+    "angle_vec_rad",
+    [](const L &self, const L::vec_type &vec) {
+      return self.AngleRad(vec);
+    },
+    doc.str().c_str(),
+    pybind11::arg("vec"));
 
   std::ostringstream().swap(doc);
   doc << "Returns the angle :math:`\\alpha \\in [0, 180]` between this line "
-         "and the\n"
-         "given directional vector.\n\n"
+         "and the\ngiven directional vector.\n\n"
          "**Corresponding C++ API:** ``"
       << module_name << "::Line2d::AngleDeg``.";
-  line.def("angle_deg", &L::AngleDeg, doc.str().c_str(), pybind11::arg("vec"));
+  line.def(
+    "angle_vec_deg",
+    [](const L &self, const L::vec_type &vec) {
+      return self.AngleDeg(vec);
+    },
+    doc.str().c_str(),
+    pybind11::arg("vec"));
+
+  std::ostringstream().swap(doc);
+  doc << "Returns the angle :math:`\\alpha \\in [0, \\pi]` between this line "
+         "and the\nsecond line.\n\n"
+         "**Corresponding C++ API:** ``"
+      << module_name << "::Line2d::AngleRad``.";
+  line.def(
+    "angle_rad", [](const L &self, const L &other) {
+      return self.AngleRad(other);
+    },
+    doc.str().c_str(),
+    pybind11::arg("other"));
+
+  std::ostringstream().swap(doc);
+  doc << "Returns the angle :math:`\\alpha \\in [0, 180]` between this line "
+         "and the\nsecond line.\n\n"
+         "**Corresponding C++ API:** ``"
+      << module_name << "::Line2d::AngleDeg``.";
+  line.def(
+    "angle_deg", [](const L &self, const L &other) {
+      return self.AngleDeg(other);
+    },
+    doc.str().c_str(),
+    pybind11::arg("other"));
 
   std::ostringstream().swap(doc);
   doc << "Returns ``True`` if the two lines are collinear.\n\n"
          "**Corresponding C++ API:** ``"
       << module_name << "::Line2d::IsCollinear``.";
   line.def("is_collinear", &L::IsCollinear, doc.str().c_str(),
-           pybind11::arg("line"));
+           pybind11::arg("other"));
+
+  std::ostringstream().swap(doc);
+  doc << "Returns ``True`` if the two lines are parallel.\n\n"
+         "**Corresponding C++ API:** ``"
+      << module_name << "::Line2d::IsParallel``.";
+  line.def("is_parallel", &L::IsParallel, doc.str().c_str(),
+           pybind11::arg("other"));
 
   std::ostringstream().swap(doc);
   doc << "Returns the closest point on the **line**, i.e. the projection of "
