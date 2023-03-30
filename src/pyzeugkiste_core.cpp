@@ -3,6 +3,7 @@
 #include <werkzeugkiste-bindings/line2d_bindings.h>
 #include <werkzeugkiste-bindings/vector_bindings.h>
 #include <werkzeugkiste-bindings/string_bindings.h>
+#include <werkzeugkiste/version.h>
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -49,6 +50,8 @@ PYBIND11_MODULE(pyzeugkiste_PYMODULE_IDENTIFIER, m) {
        * `geo`
        * `strings`
     )doc";
+
+  m.attr("__werkzeugkiste_version__") = werkzeugkiste::Version();
 
   RegisterGeometryUtils(m);
   werkzeugkiste::bindings::RegisterConfigUtils(m);

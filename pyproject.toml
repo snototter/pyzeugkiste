@@ -5,7 +5,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "pyzeugkiste"
-version = "0.7.1"
+version = "0.7.2"
 description="PyZeugKiste: Python bindings for werkzeugkiste & additional python-only helpers."
 readme = "README.md"
 authors = [
