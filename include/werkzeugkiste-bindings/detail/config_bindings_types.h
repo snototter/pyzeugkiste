@@ -373,9 +373,9 @@ inline werkzeugkiste::config::date PyObjToDateUnchecked(pybind11::handle obj) {
   const int year = obj.attr("year").cast<int>();
   const int month = obj.attr("month").cast<int>();
   const int day = obj.attr("day").cast<int>();
-  return werkzeugkiste::config::date{static_cast<uint_fast16_t>(year),
-                      static_cast<uint_fast8_t>(month),
-                      static_cast<uint_fast8_t>(day)};
+  return werkzeugkiste::config::date{static_cast<int32_t>(year),
+                      static_cast<int32_t>(month),
+                      static_cast<int32_t>(day)};
 }
 
 
@@ -384,10 +384,10 @@ inline werkzeugkiste::config::time PyObjToTimeUnchecked(pybind11::handle obj) {
   const int minute = obj.attr("minute").cast<int>();
   const int second = obj.attr("second").cast<int>();
   const int microsec = obj.attr("microsecond").cast<int>();
-  return werkzeugkiste::config::time{static_cast<uint_fast8_t>(hour),
-                      static_cast<uint_fast8_t>(minute),
-                      static_cast<uint_fast8_t>(second),
-                      static_cast<uint_fast32_t>(microsec * 1000)};
+  return werkzeugkiste::config::time{static_cast<int32_t>(hour),
+                      static_cast<int32_t>(minute),
+                      static_cast<int32_t>(second),
+                      static_cast<int32_t>(microsec * 1000)};
 }
 
 
@@ -470,7 +470,7 @@ inline werkzeugkiste::config::date_time PyObjToDateTime(pybind11::handle obj) {
     } else {
       const auto pyoffset_sec = obj.attr("utcoffset")().attr("total_seconds")();
       const auto offset_min =
-          static_cast<int_fast16_t>(pyoffset_sec.cast<double>() / 60.0);
+          static_cast<int32_t>(pyoffset_sec.cast<double>() / 60.0);
       return werkzeugkiste::config::date_time{d, t, werkzeugkiste::config::time_offset{offset_min}};
     }
   }
