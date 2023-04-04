@@ -1,5 +1,5 @@
 import pytest
-import pyzeugkiste
+import pyzeugkiste  # Needed for the deserialization checks, i.e. eval(repr(x))
 from pyzeugkiste import geo as pzgeo
 import math
 import pickle
@@ -353,3 +353,73 @@ def test_vector_numpy_sliced():
 #def test_vector_numpy_noncont():
 #    """Construct a vector from non-C-contiguous arrays."""
 #TODO
+
+def approx(val):
+    # Due to rounding & precision loss, we typically have deviations around
+    # 1e-5 or e-6 for the angles. To prevent unnecessarily flaky tests,
+    # reduce the desired precision to 1e-3:
+    return pytest.approx(val, abs=1e-3)
+
+
+def test_vector_angles():
+    ## Floating points
+    vec1 = pzgeo.Vec2d(1, 0)
+    vec2 = pzgeo.Vec2d(1, 1)
+    assert approx(45) == vec1.angle_deg(vec2)
+    assert approx(math.pi / 4) == vec1.angle_rad(vec2)
+
+    vec2 = pzgeo.Vec2d(0, 1)
+    assert approx(90) == vec1.angle_deg(vec2)
+
+    vec2 = pzgeo.Vec2d(-1, 0)
+    assert approx(180) == vec1.angle_deg(vec2)
+
+    # angle_deg returns the angle in [0, +180]
+    vec2 = pzgeo.Vec2d(0, -1)
+    assert approx(90) == vec1.angle_deg(vec2)
+
+    # Test rotation
+    assert approx(0) == vec1.angle_deg(vec1)
+    vec2 = vec1.rotate_deg(5)
+    assert approx(5) == vec1.angle_deg(vec2)
+
+    vec2 = vec1.rotate_deg(97)
+    assert approx(97) == vec1.angle_deg(vec2)
+
+    vec2 = vec1.rotate_deg(180)
+    assert approx(180) == vec1.angle_deg(vec2)
+
+    vec2 = vec1.rotate_deg(182)
+    assert approx(178) == vec1.angle_deg(vec2)
+  
+    vec2 = vec1.rotate_deg(265)
+    assert approx(95) == vec1.angle_deg(vec2)
+
+    ## Integral
+    vec1 = pzgeo.Vec2i(10, 0)
+    vec2 = pzgeo.Vec2i(1, 1)
+    assert approx(45) == vec1.angle_deg(vec2)
+    assert approx(math.pi / 4) == vec1.angle_rad(vec2)
+
+    vec2 = pzgeo.Vec2i(0, 1)
+    assert approx(90) == vec1.angle_deg(vec2)
+    assert approx(math.pi / 2) == vec1.angle_rad(vec2)
+
+    vec2 = pzgeo.Vec2i(-1, 0)
+    assert approx(180) == vec1.angle_deg(vec2)
+    assert approx(math.pi) == vec1.angle_rad(vec2)
+  
+    ## 3D Vector
+    vec1 = pzgeo.Vec3d(1, 0, 0)
+    assert approx(0) == vec1.angle_deg(vec1)
+
+    vec2 = pzgeo.Vec3d(1, 1, 1)
+    assert approx(54.735610317245346) == vec1.angle_deg(vec2)
+
+    vec2 = pzgeo.Vec3d(0, 1, 0)
+    assert approx(90) == vec1.angle_deg(vec2)
+    assert approx(math.pi / 2) == vec1.angle_rad(vec2)
+
+    vec2 = pzgeo.Vec3d(0, 0, 1)
+    assert approx(90) == vec1.angle_deg(vec2)
+    assert approx(math.pi / 2) == vec1.angle_rad(vec2)

@@ -360,7 +360,7 @@ class ConfigWrapper {
 
   bool AdjustRelativePaths(pybind11::handle base_path,
                            const std::vector<std::string_view> &parameters) {
-    cfg_.AdjustRelativePaths(PyObjToPathString(base_path), parameters);
+    return cfg_.AdjustRelativePaths(PyObjToPathString(base_path), parameters);
   }
 
  private:

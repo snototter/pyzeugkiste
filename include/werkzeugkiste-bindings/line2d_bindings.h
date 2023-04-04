@@ -59,6 +59,11 @@ inline werkzeugkiste::geometry::Line2d Line2dFromList(
 
 inline void RegisterLine2d(pybind11::module &m) {
   using L = werkzeugkiste::geometry::Line2d;
+  // The module_name variable will hold the name of the internal C++ bindings,
+  // such as "pyzeugkiste._core._geo". This is not an issue for the docstrings,
+  // but would lead to less user-friendly error messages: Thus, wherever error
+  // messages/user notifications are required, the module name of the loaded
+  // python module will be used instead.
   const std::string module_name = m.attr("__name__").cast<std::string>();
 
   std::ostringstream doc;
@@ -85,8 +90,10 @@ inline void RegisterLine2d(pybind11::module &m) {
          "where ``pt1`` & ``pt2`` are the start and end points"
          "as :class:`~"
       << module_name << ".Vec2d`.\n";
-  line.def(pybind11::init<>([module_name](const pybind11::tuple &tpl) {
-             return Line2dFromTuple(tpl, module_name);
+  line.def(pybind11::init<>([line](const pybind11::tuple &tpl) {
+             const std::string modname =
+                 line.attr("__module__").cast<std::string>();
+             return Line2dFromTuple(tpl, modname);
            }),
            doc.str().c_str(), pybind11::arg("tpl"));
 
@@ -97,28 +104,39 @@ inline void RegisterLine2d(pybind11::module &m) {
          "where ``pt1`` & ``pt2`` are the start and end points"
          "as :class:`~"
       << module_name << ".Vec2d`.";
-  line.def(pybind11::init<>([module_name](const pybind11::list &lst) {
-             return Line2dFromList(lst, module_name);
+  line.def(pybind11::init<>([line](const pybind11::list &lst) {
+             const std::string modname =
+                 line.attr("__module__").cast<std::string>();
+             return Line2dFromList(lst, modname);
            }),
            doc.str().c_str(), pybind11::arg("lst"));
 
   line.def("__str__",
            [](const L &l) {
              std::ostringstream s;
-             s << l;
+             constexpr bool include_type = false;
+             constexpr int precision = 0;
+             s << "Line2d(" << l.From().ToString(include_type, precision)
+               << " --> " << l.To().ToString(include_type, precision) << ')';
              return s.str();
            })
-      .def("__repr__", [](const L &l) {
+      .def("__repr__", [line](const L &obj) {
         std::ostringstream s;
-        s << '<' << l << '>';
+        const std::string modname = line.attr("__module__").cast<std::string>();
+        if (!modname.empty()) {
+          s << modname << '.';
+        }
+        s << obj;
         return s.str();
       });
 
   std::ostringstream().swap(doc);
   doc << ":class:`~" << module_name << ".Line2d` instances can be pickled.";
   line.def(pybind11::pickle(&Line2dToTuple,
-                            [module_name](const pybind11::tuple &tpl) {
-                              return Line2dFromTuple(tpl, module_name);
+                            [line](const pybind11::tuple &tpl) {
+                              const std::string modname =
+                                  line.attr("__module__").cast<std::string>();
+                              return Line2dFromTuple(tpl, modname);
                             }),
            doc.str().c_str());
 
@@ -149,12 +167,7 @@ inline void RegisterLine2d(pybind11::module &m) {
       << ".Line2d.pt1` is left of\n:attr:`~" << module_name
       << ".Line2d.pt2`.\n\n"
          "If this line is vertical, the points will be sorted such that\n"
-         ":attr:`~"
-      << module_name
-      << ".Line2d.pt1` is above "
-         ":attr:`~"
-      << module_name
-      << ".Line2d.pt2`.\n\n"
+         "the y coordinates are in ascending order.\n\n"
          "**Corresponding C++ API:** ``"
       << module_name << "::Line2d::LeftToRight``.";
   line.def("left_to_right", &L::LeftToRight, doc.str().c_str());
@@ -210,7 +223,7 @@ inline void RegisterLine2d(pybind11::module &m) {
   std::ostringstream().swap(doc);
   doc << "float: Length of the segment between :attr:`~" << module_name
       << ".Line2d.pt1`\n"
-         "  and :attr:`~viren2d.Line2d.pt2`.\n\n"
+         "  and :attr:`~" << module_name << ".Line2d.pt2`.\n\n"
          "  **Corresponding C++ API:** ``"
       << module_name << "::Line2d::Length``.";
   line.def_property_readonly("length", &L::Length, doc.str().c_str());
@@ -226,35 +239,74 @@ inline void RegisterLine2d(pybind11::module &m) {
         )docstr"
       << "\n\n**Corresponding C++ API:** ``" << module_name
       << "::Line2d::HomogeneousForm``.\n\n"
-      << R"docstr(
-        Returns:
-          The :class:`~viren2d.Vec3d` as the result of
-          :math:`\text{pt1} \times \text{pt2}`.
-        )docstr";
+         "Returns:\n"
+         "  The :class:`~" << module_name << ".Vec3d` as the result of"
+         "  :math:`\text{pt1} \times \text{pt2}`.";
   line.def("homogeneous", &L::HomogeneousForm, doc.str().c_str());
 
   std::ostringstream().swap(doc);
   doc << "Returns the angle :math:`\\alpha \\in [0, \\pi]` between this line "
-         "and the\n"
-         "given directional vector.\n\n"
+         "and the\ngiven directional vector.\n\n"
          "**Corresponding C++ API:** ``"
       << module_name << "::Line2d::AngleRad``.";
-  line.def("angle_rad", &L::AngleRad, doc.str().c_str(), pybind11::arg("vec"));
+  line.def(
+    "angle_vec_rad",
+    [](const L &self, const L::vec_type &vec) {
+      return self.AngleRad(vec);
+    },
+    doc.str().c_str(),
+    pybind11::arg("vec"));
 
   std::ostringstream().swap(doc);
   doc << "Returns the angle :math:`\\alpha \\in [0, 180]` between this line "
-         "and the\n"
-         "given directional vector.\n\n"
+         "and the\ngiven directional vector.\n\n"
          "**Corresponding C++ API:** ``"
       << module_name << "::Line2d::AngleDeg``.";
-  line.def("angle_deg", &L::AngleDeg, doc.str().c_str(), pybind11::arg("vec"));
+  line.def(
+    "angle_vec_deg",
+    [](const L &self, const L::vec_type &vec) {
+      return self.AngleDeg(vec);
+    },
+    doc.str().c_str(),
+    pybind11::arg("vec"));
+
+  std::ostringstream().swap(doc);
+  doc << "Returns the angle :math:`\\alpha \\in [0, \\pi]` between this line "
+         "and the\nsecond line.\n\n"
+         "**Corresponding C++ API:** ``"
+      << module_name << "::Line2d::AngleRad``.";
+  line.def(
+    "angle_rad", [](const L &self, const L &other) {
+      return self.AngleRad(other);
+    },
+    doc.str().c_str(),
+    pybind11::arg("other"));
+
+  std::ostringstream().swap(doc);
+  doc << "Returns the angle :math:`\\alpha \\in [0, 180]` between this line "
+         "and the\nsecond line.\n\n"
+         "**Corresponding C++ API:** ``"
+      << module_name << "::Line2d::AngleDeg``.";
+  line.def(
+    "angle_deg", [](const L &self, const L &other) {
+      return self.AngleDeg(other);
+    },
+    doc.str().c_str(),
+    pybind11::arg("other"));
 
   std::ostringstream().swap(doc);
   doc << "Returns ``True`` if the two lines are collinear.\n\n"
          "**Corresponding C++ API:** ``"
       << module_name << "::Line2d::IsCollinear``.";
   line.def("is_collinear", &L::IsCollinear, doc.str().c_str(),
-           pybind11::arg("line"));
+           pybind11::arg("other"));
+
+  std::ostringstream().swap(doc);
+  doc << "Returns ``True`` if the two lines are parallel.\n\n"
+         "**Corresponding C++ API:** ``"
+      << module_name << "::Line2d::IsParallel``.";
+  line.def("is_parallel", &L::IsParallel, doc.str().c_str(),
+           pybind11::arg("other"));
 
   std::ostringstream().swap(doc);
   doc << "Returns the closest point on the **line**, i.e. the projection of "

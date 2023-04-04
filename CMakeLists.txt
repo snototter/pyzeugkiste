@@ -107,7 +107,8 @@ endif()
 FetchContent_Declare(
   werkzeugkiste
   GIT_REPOSITORY https://github.com/snototter/werkzeugkiste.git
-  GIT_TAG main)
+#  GIT_TAG main)
+  GIT_TAG v0.18.8)
 FetchContent_MakeAvailable(werkzeugkiste)
 message(STATUS "Using werkzeugkiste ${werkzeugkiste_VERSION}")
 
