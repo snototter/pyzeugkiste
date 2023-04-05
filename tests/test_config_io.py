@@ -19,7 +19,7 @@ def test_io_toml():
     with pytest.raises(pyc.ParseError):
         pyc.load_toml_file('no-such-file.toml')
 
-    cfg = pyc.Configuration()
+    cfg = pyc.Config()
     assert cfg.empty()
 
     cfg = pyc.load_toml_file(data() / 'test-valid1.toml')
@@ -31,7 +31,7 @@ def test_io_toml():
     tstr = cfg.to_toml()
     cfg2 = pyc.load_toml_str(tstr)
     assert cfg == cfg2
-    cfg.set_bool('new', True)
+    cfg['new-val'] = True
     assert cfg != cfg2
 
     pn1 = cfg.list_parameter_names()

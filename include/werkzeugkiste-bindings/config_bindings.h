@@ -121,9 +121,19 @@ now_utc.utcoffset() -> timedelta
 */
 
 namespace werkzeugkiste::bindings::detail {
-class ConfigWrapper;
+// class ConfigWrapper; //TODO remove
 
-std::string PyObjToPathString(pybind11::handle path);
+class Config;
+
+void RegisterConfigTypes(pybind11::module &m);
+void RegisterLoading(pybind11::module &m);
+void RegisterBasicOperators(pybind11::class_<Config> &wrapper);
+void RegisterSerialization(pybind11::class_<Config> &wrapper);
+void RegisterGenericAccess(pybind11::class_<Config> &wrapper);
+void RegisterTypedAccess(pybind11::class_<Config> &wrapper);
+void RegisterExtendedUtils(pybind11::class_<Config> &wrapper);
+
+std::string PyObjToString(pybind11::handle path);
 
 werkzeugkiste::config::date PyObjToDate(pybind11::handle obj);
 werkzeugkiste::config::time PyObjToTime(pybind11::handle obj);
@@ -133,22 +143,30 @@ pybind11::object DateToPyObj(const werkzeugkiste::config::date &d);
 pybind11::object TimeToPyObj(const werkzeugkiste::config::time &t);
 pybind11::object DateTimeToPyObj(const werkzeugkiste::config::date_time &dt);
 
-pybind11::list ListToPyList(
-    const pybind11::class_<ConfigWrapper> *cls_handle,
-    const werkzeugkiste::config::Configuration &cfg,
-    std::string_view key);
+werkzeugkiste::config::Configuration PyDictToConfiguration(
+    const pybind11::dict &d);
+void ExtractPyIterable(werkzeugkiste::config::Configuration &cfg,
+                       std::string_view key, pybind11::handle lst);
 
-pybind11::object GroupToPyObj(
-    const pybind11::class_<ConfigWrapper> *cls_handle,
-    const werkzeugkiste::config::Configuration &wcfg);
-
-void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg);
-void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg);
-void RegisterConfigUtilities(pybind11::class_<ConfigWrapper> &cfg);
+// // TODO remove
+// pybind11::list ListToPyList(
+//     const pybind11::class_<ConfigWrapper> *cls_handle,
+//     const werkzeugkiste::config::Configuration &cfg,
+//     std::string_view key);
+// // TODO remove
+// pybind11::object GroupToPyObj(
+//     const pybind11::class_<ConfigWrapper> *cls_handle,
+//     const werkzeugkiste::config::Configuration &wcfg);
+// // TODO remove
+// void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg);
+// // TODO remove
+// void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg);
+// // TODO remove
+// void RegisterConfigUtilities(pybind11::class_<ConfigWrapper> &cfg);
 }  // namespace werkzeugkiste::bindings::detail
 
-#include <werkzeugkiste-bindings/detail/config_bindings_types.h>
 #include <werkzeugkiste-bindings/detail/config_bindings_access.h>
+#include <werkzeugkiste-bindings/detail/config_bindings_types.h>
 
 namespace werkzeugkiste::bindings {
 inline void RegisterConfigUtils(pybind11::module &main_module) {
@@ -159,12 +177,13 @@ inline void RegisterConfigUtils(pybind11::module &main_module) {
     TODO summary
     )doc";
 
-  const std::string module_name = m.attr("__name__").cast<std::string>();
-  const std::string config_name = std::string{module_name} + ".Configuration";
+  // const std::string module_name = m.attr("__name__").cast<std::string>(); //
+  // TODO check if/where needed const std::string config_name =
+  // std::string{module_name} + ".Config";
 
-  std::string doc_string{};
-  std::ostringstream doc_stream;
-  doc_string = R"doc(
+  detail::RegisterConfigTypes(m);
+
+  std::string doc_string = R"doc(
     Encapsulates parameters.
 
     This class provides dictionary-like access to parameters and
@@ -197,9 +216,9 @@ inline void RegisterConfigUtils(pybind11::module &main_module) {
     .. code-block:: python
          :caption: Example
 
-         from pyzeugkiste import config
+         from pyzeugkiste import config as pyc
 
-         cfg = config.load_toml_str("""
+         cfg = pyc.load_toml_str("""
              int = 23
              flt = 1.5
              str = "value"
@@ -221,12 +240,12 @@ inline void RegisterConfigUtils(pybind11::module &main_module) {
          cfg['flt'] = 3  # Parameter is still a float
 
          cfg['my_str'] = 'value'  # Creates a new string parameter
-         cfg.get_str('my_str')    # Alternative access
+         cfg.str('my_str')        # Alternative access
 
-         cfg.get_int_or('unknown', -1)  # Allow default value
+         cfg.int_or('unknown', -1)  # Returns the fallback/default value
 
-         cfg['unknown']      # Raises a KeyError
-         cfg.get_int('str')  # Raises a TypeError
+         cfg['unknown']  # Raises a KeyError
+         cfg.int('str')  # Raises a TypeError
 
          cfg.replace_placeholders([
              ('%USR%', 'whoami'),
@@ -242,155 +261,274 @@ inline void RegisterConfigUtils(pybind11::module &main_module) {
          print(cfg.to_toml())
     )doc";
 
-  pybind11::class_<detail::ConfigWrapper> cfg(m, "Configuration",
-                                              doc_string.c_str());
-
-  cfg.def(pybind11::init<>(), "Creates an empty configuration.");
-
-  //---------------------------------------------------------------------------
-  // General members/operators
-  cfg.def("empty", &detail::ConfigWrapper::Empty,
-          "Checks if this configuration has any parameters set.");
-
-  // Equality checks
-  cfg.def(
-      "__eq__",
-      [](const detail::ConfigWrapper &a,
-         const detail::ConfigWrapper &b) -> bool { return a.Equals(b); },
-      "Checks for equality.\n\nReturns ``True`` if both configs contain the "
-      "exact same configuration, *i.e.* keys, corresponding data types and\n"
-      "values.",
-      pybind11::arg("other"));
-
-  cfg.def(
-      "__ne__",
-      [](const detail::ConfigWrapper &a,
-         const detail::ConfigWrapper &b) -> bool { return !a.Equals(b); },
-      "Checks for inequality, see :meth:`__eq__` for details.",
-      pybind11::arg("other"));
-
-  cfg.def("__str__",
-          [cfg](const detail::ConfigWrapper &c) {
-            std::ostringstream s;
-            const std::string modname =
-                cfg.attr("__module__").cast<std::string>();
-            if (!modname.empty()) {
-              s << modname << '.';
-            }
-
-            const std::size_t sz = c.Size();
-            s << "Configuration(" << sz
-              << ((sz == 1) ? " parameter" : " parameters") << ')';
-            return s.str();
-          })
-      .def("__repr__", [](const detail::ConfigWrapper &c) {
-        return c.ToTOMLString();
-        // return c.attr("__name__").cast<std::string>();
-        //  return cfg.attr("__name__").cast<std::string>();
-        //  std::ostringstream s;
-        //  s << m.attr("__name__").cast<std::string>() << ".Configuration()";
-        //  // TODO x parameters, ...
-        //  return s.str();
-      });
-
-  cfg.def("__contains__", &detail::ConfigWrapper::Contains,
-          "Checks if the given key (fully-qualified parameter name) exists.",
-          pybind11::arg("key"));
-
-  cfg.def("__len__", &detail::ConfigWrapper::Size,
-          "Returns the number of parameters (key-value pairs) in this "
-          "configuration.");
+  // m.def("load_test", &detail::Config::LoadTOMLString, "TODO");
+  pybind11::class_<detail::Config> wrapper(m, "Config", doc_string.c_str());
+  wrapper.def(pybind11::init<>());
 
   //---------------------------------------------------------------------------
   // Loading a configuration
-
-  doc_string = R"doc(
-    Loads a configuration file.
-
-    The configuration type will be deduced from the file extension, *i.e.*
-    `.toml`, `.json`, or `.cfg`. For JSON files, the default
-    :class:`NullValuePolicy` will be used, see :meth:`load_json_file`.
-
-    Args:
-      filename: Path to the configuration file, can either be a :class:`str` or
-        any object that can be represented as a :class:`str`. For example, a
-        :class:`pathlib.Path` is also a valid input parameter.
-
-    Raises:
-      :class:`~pyzeugkiste.config.ParseError`: If a parsing error occured, *e.g.* the
-          file does not exist, the configuration type cannot be deduced, there are
-          syntax errors in the file, *etc.*
-  )doc";
-  m.def("load", &detail::ConfigWrapper::LoadFile, doc_string.c_str(),
-        pybind11::arg("filename"));
-
-  // TODO document exceptions
-  m.def("load_toml_str", &detail::ConfigWrapper::LoadTOMLString,
-        "Loads the configuration from a `TOML <https://toml.io/en/>`__ string.",
-        pybind11::arg("toml_str"));
-
-  m.def("load_toml_file", &detail::ConfigWrapper::LoadTOMLFile,
-        "Loads the configuration from a `TOML <https://toml.io/en/>`__ file.",
-        pybind11::arg("filename"));
-
-  // TODO NullValuePolicy
-  m.def(
-      "load_json_str", &detail::ConfigWrapper::LoadJSONString,
-      "Loads the configuration from a `JSON <https://www.json.org/>`__ string.",
-      pybind11::arg("json_str"));
-
-  // TODO NullValuePolicy
-  m.def("load_json_file", &detail::ConfigWrapper::LoadJSONFile,
-        "Loads the configuration from a `JSON <https://www.json.org/>`__ file.",
-        pybind11::arg("filename"));
-
-  // TODO libconfig (doc: only available if built with libconfig support)
-  // TODO enable automatically if libconfig++ is installed or enable via
-  //   install extras?
-  m.def("load_libconfig_str", &detail::ConfigWrapper::LoadLibconfigString,
-        "Loads the configuration from a `Libconfig "
-        "<http://hyperrealm.github.io/libconfig/>`__ "
-        "string if `libconfig++` is available.",
-        pybind11::arg("cfg_str"));
-
-  m.def("load_libconfig_file", &detail::ConfigWrapper::LoadLibconfigFile,
-        "Loads the configuration from a `Libconfig "
-        "<http://hyperrealm.github.io/libconfig/>`__ file.",
-        pybind11::arg("filename"));
+  detail::RegisterLoading(m);
 
   //---------------------------------------------------------------------------
-  // Serializing
-  cfg.def("to_toml", &detail::ConfigWrapper::ToTOMLString,
-          "Returns a `TOML <https://toml.io/>`__-formatted representation "
-          "of this configuration.");
-
-  cfg.def("to_json", &detail::ConfigWrapper::ToJSONString,
-          "Returns a `JSON <https://www.json.org/>`__-formatted representation "
-          "of this configuration.\n\nNote that date/time parameters will be "
-          "replaced by their string representation.");
-
-  cfg.def("to_libconfig", &detail::ConfigWrapper::ToLibconfigString,
-          "Returns a `Libconfig "
-          "<http://hyperrealm.github.io/libconfig/>`__-formatted "
-          "representation of this configuration.");
-
-  cfg.def("to_yaml", &detail::ConfigWrapper::ToYAMLString,
-          "Returns a `YAML <https://yaml.org/>`__-formatted representation "
-          "of this configuration.");
-  // TODO state currently supported version + auto-replacements (date?)
-
-  cfg.def("to_dict", &detail::ConfigWrapper::ToDict,
-          "Returns a :class:`dict` holding all parameters of this configuration.");
+  // Serialization
+  detail::RegisterSerialization(wrapper);
 
   //---------------------------------------------------------------------------
-  // Getter/Setter
+  // General utils/operators
+  detail::RegisterBasicOperators(wrapper);
 
-  detail::RegisterScalarAccess(cfg);
-  detail::RegisterGenericAccess(cfg);
+  //---------------------------------------------------------------------------
+  // Typed queries (int, int_or, list, list_or, ...)
+  detail::RegisterTypedAccess(wrapper);
+
+  //---------------------------------------------------------------------------
+  // Generic access (__getitem__, __setitem__, __delitem__)
+  detail::RegisterGenericAccess(wrapper);
 
   //---------------------------------------------------------------------------
   // Special utils
-  detail::RegisterConfigUtilities(cfg);
+  detail::RegisterExtendedUtils(wrapper);
+
+  // doc_string = R"doc(
+  //   Encapsulates parameters.
+
+  //   This class provides dictionary-like access to parameters and
+  //   provides several additional utilities, such as replacing placeholders,
+  //   adjusting relative file paths, merging/nesting configurations, *etc.*
+
+  //   This utitility is intended for *"typical"* configuration scenarios. Thus,
+  //   it supports the following basic types: :class:`bool`, :class:`int`,
+  //   :class:`float`, and :class:`str`. As it uses `TOML
+  //   <https://toml.io/en/>`__ under the hood, it also supports explicit date
+  //   and time types. Parameters can be combined into a :class:`list`, or into
+  //   parameter groups, which correspond to *tables* in `TOML
+  //   <https://toml.io/en/>`__, *groups* in `libconfig
+  //   <http://hyperrealm.github.io/libconfig/>`__, *objects* in `JSON
+  //   <https://www.json.org/>`__ or :class:`dict` in python.
+
+  //   **Type-checked access** is provided via :meth:`get_int`, :meth:`get_str`,
+  //   *etc.* or allow default values if a *key* does not exist via
+  //   :meth:`get_int_or`, :meth:`get_float_or`, *etc.*
+  //   Parameters can be set via corresponding setters, such as
+  //   :meth:`set_bool`. For convenience, access is also supported via
+  //   :meth:`__getitem__` and :meth:`__setitem__`.
+
+  //   **Implicit numeric casts** will be performed if the value can be
+  //   **exactly represented** in the target type. For example, an :class:`int`
+  //   value 42 can be exactly represented by a :class:`float`, whereas a
+  //   :class:`float` of 0.5 can't be cast to an :class:`int`. For the latter
+  //   cast, a :class:`~pyzeugkiste.config.TypeError` would be raised.
+
+  //   .. code-block:: python
+  //        :caption: Example
+
+  //        from pyzeugkiste import config
+
+  //        cfg = config.load_toml_str("""
+  //            int = 23
+  //            flt = 1.5
+  //            str = "value"
+  //            bool = false
+
+  //            [replacements]
+  //            work_dir = "/home/%USR%/work"
+  //            output_file = "%OUT%/dump.bin"
+
+  //            [disk]
+  //            network_config = "configs/net.toml"
+  //            model_path = "models/latest.bin"
+  //            image_path = "images/"
+  //            """)
+
+  //        'str' in cfg    # Returns True
+
+  //        cfg['flt']      # Returns a float
+  //        cfg['flt'] = 3  # Parameter is still a float
+
+  //        cfg['my_str'] = 'value'  # Creates a new string parameter
+  //        cfg.get_str('my_str')    # Alternative access
+
+  //        cfg.get_int_or('unknown', -1)  # Allow default value
+
+  //        cfg['unknown']      # Raises a KeyError
+  //        cfg.get_int('str')  # Raises a TypeError
+
+  //        cfg.replace_placeholders([
+  //            ('%USR%', 'whoami'),
+  //            ('%OUT%', '/path/to/output')])
+
+  //        cfg.adjust_relative_paths(
+  //            '/path/to/workdir',
+  //            ['network_config', 'disk.*path'])
+
+  //        cfg.load_nested('disk.network_config')
+  //        cfg['disk.network_config']  # Is now a group/dictionary
+
+  //        print(cfg.to_toml())
+  //   )doc";
+
+  // pybind11::class_<detail::ConfigWrapper> cfg(m, "Configuration",
+  //                                             doc_string.c_str());
+
+  // cfg.def(pybind11::init<>(), "Creates an empty configuration.");
+
+  // //TODO
+  // // cfg.def("view", &detail::ConfigWrapper::Get, "TODO");
+  // // cfg.def("debug", [](detail::ConfigWrapper &c, std::string_view key) {
+  // //   if (c.Type(key) == werkzeugkiste::config::ConfigType::Group) {
+  // //     return c.Get(key);
+  // //   }
+  // //   return pybind11::none();
+  // // });
+
+  // //---------------------------------------------------------------------------
+  // // General members/operators
+  // cfg.def("empty", &detail::ConfigWrapper::Empty,
+  //         "Checks if this configuration has any parameters set.");
+
+  // // Equality checks
+  // cfg.def(
+  //     "__eq__",
+  //     [](const detail::ConfigWrapper &a,
+  //        const detail::ConfigWrapper &b) -> bool { return a.Equals(b); },
+  //     "Checks for equality.\n\nReturns ``True`` if both configs contain the "
+  //     "exact same configuration, *i.e.* keys, corresponding data types and\n"
+  //     "values.",
+  //     pybind11::arg("other"));
+
+  // cfg.def(
+  //     "__ne__",
+  //     [](const detail::ConfigWrapper &a,
+  //        const detail::ConfigWrapper &b) -> bool { return !a.Equals(b); },
+  //     "Checks for inequality, see :meth:`__eq__` for details.",
+  //     pybind11::arg("other"));
+
+  // cfg.def("__str__",
+  //         [cfg](const detail::ConfigWrapper &c) {
+  //           std::ostringstream s;
+  //           const std::string modname =
+  //               cfg.attr("__module__").cast<std::string>();
+  //           if (!modname.empty()) {
+  //             s << modname << '.';
+  //           }
+
+  //           const std::size_t sz = c.Size();
+  //           s << "Configuration(" << sz
+  //             << ((sz == 1) ? " parameter" : " parameters") << ')';
+  //           return s.str();
+  //         })
+  //     .def("__repr__", [](const detail::ConfigWrapper &c) {
+  //       return c.ToTOMLString();
+  //       // return c.attr("__name__").cast<std::string>();
+  //       //  return cfg.attr("__name__").cast<std::string>();
+  //       //  std::ostringstream s;
+  //       //  s << m.attr("__name__").cast<std::string>() <<
+  //       ".Configuration()";
+  //       //  // TODO x parameters, ...
+  //       //  return s.str();
+  //     });
+
+  // cfg.def("__contains__", &detail::ConfigWrapper::Contains,
+  //         "Checks if the given key (fully-qualified parameter name) exists.",
+  //         pybind11::arg("key"));
+
+  // cfg.def("__len__", &detail::ConfigWrapper::Size,
+  //         "Returns the number of parameters (key-value pairs) in this "
+  //         "configuration.");
+
+  // //---------------------------------------------------------------------------
+  // // Loading a configuration
+
+  // doc_string = R"doc(
+  //   Loads a configuration file.
+
+  //   The configuration type will be deduced from the file extension, *i.e.*
+  //   `.toml`, `.json`, or `.cfg`. For JSON files, the default
+  //   :class:`NullValuePolicy` will be used, see :meth:`load_json_file`.
+
+  //   Args:
+  //     filename: Path to the configuration file, can either be a :class:`str`
+  //     or
+  //       any object that can be represented as a :class:`str`. For example, a
+  //       :class:`pathlib.Path` is also a valid input parameter.
+
+  //   Raises:
+  //     :class:`~pyzeugkiste.config.ParseError`: If a parsing error occured,
+  //     *e.g.* the
+  //         file does not exist, the configuration type cannot be deduced,
+  //         there are syntax errors in the file, *etc.*
+  // )doc";
+  // m.def("load", &detail::ConfigWrapper::LoadFile, doc_string.c_str(),
+  //       pybind11::arg("filename"));
+
+  // // TODO document exceptions
+  // m.def("load_toml_str", &detail::ConfigWrapper::LoadTOMLString,
+  //       "Loads the configuration from a `TOML <https://toml.io/en/>`__
+  //       string.", pybind11::arg("toml_str"));
+
+  // m.def("load_toml_file", &detail::ConfigWrapper::LoadTOMLFile,
+  //       "Loads the configuration from a `TOML <https://toml.io/en/>`__
+  //       file.", pybind11::arg("filename"));
+
+  // // TODO NullValuePolicy
+  // m.def(
+  //     "load_json_str", &detail::ConfigWrapper::LoadJSONString,
+  //     "Loads the configuration from a `JSON <https://www.json.org/>`__
+  //     string.", pybind11::arg("json_str"));
+
+  // // TODO NullValuePolicy
+  // m.def("load_json_file", &detail::ConfigWrapper::LoadJSONFile,
+  //       "Loads the configuration from a `JSON <https://www.json.org/>`__
+  //       file.", pybind11::arg("filename"));
+
+  // // TODO libconfig (doc: only available if built with libconfig support)
+  // // TODO enable automatically if libconfig++ is installed or enable via
+  // //   install extras?
+  // m.def("load_libconfig_str", &detail::ConfigWrapper::LoadLibconfigString,
+  //       "Loads the configuration from a `Libconfig "
+  //       "<http://hyperrealm.github.io/libconfig/>`__ "
+  //       "string if `libconfig++` is available.",
+  //       pybind11::arg("cfg_str"));
+
+  // m.def("load_libconfig_file", &detail::ConfigWrapper::LoadLibconfigFile,
+  //       "Loads the configuration from a `Libconfig "
+  //       "<http://hyperrealm.github.io/libconfig/>`__ file.",
+  //       pybind11::arg("filename"));
+
+  // //---------------------------------------------------------------------------
+  // // Serializing
+  // cfg.def("to_toml", &detail::ConfigWrapper::ToTOMLString,
+  //         "Returns a `TOML <https://toml.io/>`__-formatted representation "
+  //         "of this configuration.");
+
+  // cfg.def("to_json", &detail::ConfigWrapper::ToJSONString,
+  //         "Returns a `JSON <https://www.json.org/>`__-formatted
+  //         representation " "of this configuration.\n\nNote that date/time
+  //         parameters will be " "replaced by their string representation.");
+
+  // cfg.def("to_libconfig", &detail::ConfigWrapper::ToLibconfigString,
+  //         "Returns a `Libconfig "
+  //         "<http://hyperrealm.github.io/libconfig/>`__-formatted "
+  //         "representation of this configuration.");
+
+  // cfg.def("to_yaml", &detail::ConfigWrapper::ToYAMLString,
+  //         "Returns a `YAML <https://yaml.org/>`__-formatted representation "
+  //         "of this configuration.");
+  // // TODO state currently supported version + auto-replacements (date?)
+
+  // cfg.def("to_dict", &detail::ConfigWrapper::ToDict,
+  //         "Returns a :class:`dict` holding all parameters of this
+  //         configuration.");
+
+  // //---------------------------------------------------------------------------
+  // // Getter/Setter
+
+  // detail::RegisterScalarAccess(cfg);
+  // detail::RegisterGenericAccess(cfg);
+
+  // //---------------------------------------------------------------------------
+  // // Special utils
+  // detail::RegisterConfigUtilities(cfg);
 
   //---------------------------------------------------------------------------
   // Register exceptions
@@ -398,14 +536,14 @@ inline void RegisterConfigUtils(pybind11::module &main_module) {
   // string of these exceptions. Otherwise, if raised they might confuse the
   // user (due to the binding-internal module name "_core._cfg")
 
-  pybind11::register_local_exception<werkzeugkiste::config::KeyError>(m, "KeyError",
-                                                       PyExc_KeyError);
-  pybind11::register_local_exception<werkzeugkiste::config::TypeError>(m, "TypeError",
-                                                        PyExc_TypeError);
-  pybind11::register_local_exception<werkzeugkiste::config::ValueError>(m, "ValueError",
-                                                         PyExc_ValueError);
-  pybind11::register_local_exception<werkzeugkiste::config::ParseError>(m, "ParseError",
-                                                         PyExc_RuntimeError);
+  pybind11::register_local_exception<werkzeugkiste::config::KeyError>(
+      m, "KeyError", PyExc_KeyError);
+  pybind11::register_local_exception<werkzeugkiste::config::TypeError>(
+      m, "TypeError", PyExc_TypeError);
+  pybind11::register_local_exception<werkzeugkiste::config::ValueError>(
+      m, "ValueError", PyExc_ValueError);
+  pybind11::register_local_exception<werkzeugkiste::config::ParseError>(
+      m, "ParseError", PyExc_RuntimeError);
 
   m.attr("KeyError").attr("__doc__") =
       "Raised if an invalid key was provided to access parameters.";

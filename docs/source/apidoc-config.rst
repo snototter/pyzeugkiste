@@ -89,7 +89,7 @@ Documentation
 .. autosummary::
    :nosignatures:
 
-   pyzeugkiste.config.Configuration
+   pyzeugkiste.config.Config
    pyzeugkiste.config.KeyError
    pyzeugkiste.config.TypeError
    pyzeugkiste.config.ValueError
@@ -99,7 +99,7 @@ Documentation
 Configuration
 .............
 
-.. autoclass:: pyzeugkiste.config.Configuration
+.. autoclass:: pyzeugkiste.config.Config
    :autosummary:
    :autosummary-nosignatures:
    :members:

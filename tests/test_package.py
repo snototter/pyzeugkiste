@@ -22,6 +22,11 @@ def test_submodules():
     assert 'strings' in pyzeugkiste.__all__
 
     assert hasattr(pyzeugkiste.args, 'ValidateDate')
-    x = pyzeugkiste.config.Configuration()
+
+    assert hasattr(pyzeugkiste.config, 'Config')
+    x = pyzeugkiste.config.Config()
+
+    assert hasattr(pyzeugkiste.geo, 'Vec2d')
     x = pyzeugkiste.geo.Vec2d()
+
     assert 3 == pyzeugkiste.strings.levenshtein_distance('to', 'from')
