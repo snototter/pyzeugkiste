@@ -165,8 +165,8 @@ void ExtractPyIterable(werkzeugkiste::config::Configuration &cfg,
 // void RegisterConfigUtilities(pybind11::class_<ConfigWrapper> &cfg);
 }  // namespace werkzeugkiste::bindings::detail
 
-#include <werkzeugkiste-bindings/detail/config_bindings_access.h>
 #include <werkzeugkiste-bindings/detail/config_bindings_types.h>
+#include <werkzeugkiste-bindings/detail/config_bindings_access.h>
 
 namespace werkzeugkiste::bindings {
 inline void RegisterConfigUtils(pybind11::module &main_module) {
