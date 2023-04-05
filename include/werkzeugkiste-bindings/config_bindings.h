@@ -121,8 +121,6 @@ now_utc.utcoffset() -> timedelta
 */
 
 namespace werkzeugkiste::bindings::detail {
-// class ConfigWrapper; //TODO remove
-
 class Config;
 
 void RegisterConfigTypes(pybind11::module &m);
@@ -147,22 +145,6 @@ werkzeugkiste::config::Configuration PyDictToConfiguration(
     const pybind11::dict &d);
 void ExtractPyIterable(werkzeugkiste::config::Configuration &cfg,
                        std::string_view key, pybind11::handle lst);
-
-// // TODO remove
-// pybind11::list ListToPyList(
-//     const pybind11::class_<ConfigWrapper> *cls_handle,
-//     const werkzeugkiste::config::Configuration &cfg,
-//     std::string_view key);
-// // TODO remove
-// pybind11::object GroupToPyObj(
-//     const pybind11::class_<ConfigWrapper> *cls_handle,
-//     const werkzeugkiste::config::Configuration &wcfg);
-// // TODO remove
-// void RegisterScalarAccess(pybind11::class_<ConfigWrapper> &cfg);
-// // TODO remove
-// void RegisterGenericAccess(pybind11::class_<ConfigWrapper> &cfg);
-// // TODO remove
-// void RegisterConfigUtilities(pybind11::class_<ConfigWrapper> &cfg);
 }  // namespace werkzeugkiste::bindings::detail
 
 #include <werkzeugkiste-bindings/detail/config_bindings_types.h>
@@ -176,10 +158,6 @@ inline void RegisterConfigUtils(pybind11::module &main_module) {
 
     TODO summary
     )doc";
-
-  // const std::string module_name = m.attr("__name__").cast<std::string>(); //
-  // TODO check if/where needed const std::string config_name =
-  // std::string{module_name} + ".Config";
 
   detail::RegisterConfigTypes(m);
 
@@ -261,7 +239,6 @@ inline void RegisterConfigUtils(pybind11::module &main_module) {
          print(cfg.to_toml())
     )doc";
 
-  // m.def("load_test", &detail::Config::LoadTOMLString, "TODO");
   pybind11::class_<detail::Config> wrapper(m, "Config", doc_string.c_str());
   wrapper.def(pybind11::init<>());
 
