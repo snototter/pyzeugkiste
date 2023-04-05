@@ -1148,7 +1148,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       Returns a copied list or the given value if the parameter does not exist.
 
       Raises:
-        :class:`~pyzeugkiste.config.TypeError` If the parameter exists, but is
+        :class:`~pyzeugkiste.config.TypeError`: If the parameter exists, but is
           not a list.
 
       Args:
@@ -1190,11 +1190,11 @@ inline void RegisterExtendedUtils(pybind11::class_<Config> &wrapper) {
       ``werkzeugkiste::config::Configuration::LoadNestedConfiguration``.
 
       Raises:
-        :class:`~pyzeugkiste.config.ParseError` Upon parsing errors, such as
+        :class:`~pyzeugkiste.config.ParseError`: Upon parsing errors, such as
           file not found, invalid syntax, *etc.*
-        :class:`~pyzeugkiste.config.TypeError` If the given parameter is
+        :class:`~pyzeugkiste.config.TypeError`: If the given parameter is
           not a string.
-        :class:`RuntimeError` If the configuration could not be inserted. In
+        :class:`RuntimeError`: If the configuration could not be inserted. In
           such cases, please file a bug report.
 
       Args:

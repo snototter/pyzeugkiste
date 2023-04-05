@@ -119,6 +119,13 @@ TypeError
    :autosummary:
 
 ..........
+ValueError
+..........
+
+.. autoclass:: pyzeugkiste.config.ValueError
+   :autosummary:
+
+..........
 ParseError
 ..........
 
