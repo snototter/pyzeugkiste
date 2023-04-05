@@ -20,8 +20,12 @@ def test_placeholders():
         """)
 
     cfg.replace_placeholders([('%REP%', '...'), ('e', '')])
-    assert cfg.get_str('str1') == 'valu'
-    assert cfg.get_str('str2') == '[...]'
-    assert cfg.get_str('tbl.str1') == 'valu ...'
-    assert cfg.get_str('tbl.str2') == '123'
-    assert cfg.get_str('tbl.str3') == 'ky'
+    assert cfg.str('str1') == 'valu'
+    assert cfg.str('str2') == '[...]'
+    assert cfg.str('tbl.str1') == 'valu ...'
+    tmp = cfg['tbl']
+    assert tmp['str1'] == 'valu ...'
+    assert cfg.str('tbl.str2') == '123'
+    assert tmp['str2'] == '123'
+    assert cfg.str('tbl.str3') == 'ky'
+    assert tmp['str3'] == 'ky'

@@ -28,39 +28,39 @@ def test_boolean():
         cfg['b']
 
     with pytest.raises(pyc.KeyError):
-        cfg.get_bool('b')
+        cfg.bool('b')
     with pytest.raises(KeyError):
-        cfg.get_bool('b')
+        cfg.bool('b')
 
     # Try to load as an invalid/incompatible type --> TypeError
     with pytest.raises(pyc.TypeError):
-        cfg.get_bool('num')
+        cfg.bool('num')
     with pytest.raises(TypeError):
-        cfg.get_bool('num')
+        cfg.bool('num')
 
     with pytest.raises(pyc.TypeError):
-        cfg.get_bool('flt')
+        cfg.bool('flt')
     with pytest.raises(TypeError):
-        cfg.get_bool('flt')
+        cfg.bool('flt')
 
     with pytest.raises(pyc.TypeError):
-        cfg.get_bool('str')
+        cfg.bool('str')
 
     # Retrieve value as intended:
     assert cfg['b1']
     assert not cfg['b2']
-    assert cfg.get_bool('b1')
-    assert not cfg.get_bool('b2')
+    assert cfg.bool('b1')
+    assert not cfg.bool('b2')
     assert isinstance(cfg['b1'], bool)
-    assert isinstance(cfg.get_bool('b1'), bool)
+    assert isinstance(cfg.bool('b1'), bool)
 
     # Use default values if the key is not found:
-    assert cfg.get_bool_or('b', True)
-    assert not cfg.get_bool_or('b', False)
+    assert cfg.bool_or('b', True)
+    assert not cfg.bool_or('b', False)
 
     # ... but an invalid type remains an invalid type:
     with pytest.raises(pyc.TypeError):
-        cfg.get_bool_or('str', True)
+        cfg.bool_or('str', True)
 
     # Changing a value is allowed
     cfg['b1'] = False
@@ -71,7 +71,7 @@ def test_boolean():
         cfg['str'] = True
 
     with pytest.raises(pyc.TypeError):
-        cfg.set_bool('flt', True)
+        cfg['flt'] = True
 
 
 def test_integer():
@@ -90,43 +90,43 @@ def test_integer():
 
     # Invalid keys --> KeyError
     with pytest.raises(pyc.KeyError):
-        cfg.get_int('i')
+        cfg.int('i')
 
     with pytest.raises(pyc.TypeError):
-        cfg.get_int('str')
+        cfg.int('str')
 
     # Use as intended
     assert 3 == cfg['i1']
-    assert 3 == cfg.get_int('i1')
+    assert 3 == cfg.int('i1')
     assert -12345 == cfg['i2']
-    assert -12345 == cfg.get_int('i2')
+    assert -12345 == cfg.int('i2')
     assert 21474836480 == cfg['i3']
-    assert 21474836480 == cfg.get_int('i3')
+    assert 21474836480 == cfg.int('i3')
     assert -21474836480 == cfg['i4']
-    assert -21474836480 == cfg.get_int('i4')
+    assert -21474836480 == cfg.int('i4')
 
     assert isinstance(cfg['i1'], int)
-    assert isinstance(cfg.get_int('i1'), int)
+    assert isinstance(cfg.int('i1'), int)
 
     # Use default values if the key is not found:
-    assert 42 == cfg.get_int_or('x', 42)
-    assert -17 == cfg.get_int_or('x', -17)
+    assert 42 == cfg.int_or('x', 42)
+    assert -17 == cfg.int_or('x', -17)
 
     # ... but an invalid type remains an invalid type:
     with pytest.raises(pyc.TypeError):
-        cfg.get_int_or('str', 3)
+        cfg.int_or('str', 3)
 
     # Implicit casts are allowed if the value is exactly
     # representable by the target type:
     with pytest.raises(pyc.TypeError):
-        cfg.get_int('flt1')  # 1.5 can't be represented as int
+        cfg.int('flt1')  # 1.5 can't be represented as int
 
-    assert -3 == cfg.get_int('flt2')
-    assert isinstance(cfg.get_int('flt2'), int)
+    assert -3 == cfg.int('flt2')
+    assert isinstance(cfg.int('flt2'), int)
     assert isinstance(cfg['flt2'], float)
 
     # Set an integer
-    cfg.set_int('my-int1', -17)
+    cfg['my-int1'] = -17
     assert 'my-int1' in cfg
     assert isinstance(cfg['my-int1'], int)
     assert -17 == cfg['my-int1']
@@ -145,7 +145,7 @@ def test_integer():
         cfg['str'] = 4
 
     with pytest.raises(pyc.TypeError):
-        cfg.set_int('b', 2)
+        cfg['b'] = 2
 
     # Similar to querying, however, if a value can be exactly represented
     # by the target type, it is implicitly cast:
@@ -153,17 +153,17 @@ def test_integer():
     assert pytest.approx(3) == cfg['flt1']
     assert isinstance(cfg['flt1'], float)  # But the type is not changed
 
-    cfg.set_int('flt2', -1)
+    cfg['flt2'] = -1
     assert pytest.approx(-1) == cfg['flt2']
     assert isinstance(cfg['flt2'], float)
-    assert -1 == cfg.get_int('flt2')
+    assert -1 == cfg.int('flt2')
 
     cfg['flt2'] = int(-3)
     assert pytest.approx(-3) == cfg['flt2']
     assert isinstance(cfg['flt2'], float)
 
     with pytest.raises(pyc.TypeError):
-        cfg.set_float('my-int1', 4.2)
+        cfg['my-int1'] = 4.2
 
     cfg['my-int1'] = float(42)
     assert 42 == cfg['my-int1']
@@ -185,19 +185,19 @@ def test_floating_point():
     assert len(cfg) == 8
 
     with pytest.raises(pyc.KeyError):
-        cfg.get_float('x')
+        cfg.float('x')
 
     with pytest.raises(pyc.TypeError):
-        cfg.get_int('str')
+        cfg.int('str')
 
-    assert pytest.approx(1.5) == cfg.get_float('flt1')
+    assert pytest.approx(1.5) == cfg.float('flt1')
     assert pytest.approx(1.5) == cfg['flt1']
-    assert pytest.approx(-3.0) == cfg.get_float('flt2')
+    assert pytest.approx(-3.0) == cfg.float('flt2')
     assert pytest.approx(-3.0) == cfg['flt2']
-    assert pytest.approx(-1e19) == cfg.get_float('flt3')
+    assert pytest.approx(-1e19) == cfg.float('flt3')
     assert pytest.approx(-1e19) == cfg['flt3']
 
-    assert isinstance(cfg.get_float('flt1'), float)
+    assert isinstance(cfg.float('flt1'), float)
     assert isinstance(cfg['flt1'], float)
 
     assert math.isinf(cfg['spec1'])
@@ -205,20 +205,20 @@ def test_floating_point():
     assert math.isnan(cfg['spec2'])
 
     # Use default values if the key is not found:
-    assert pytest.approx(42.8) == cfg.get_float_or('x', 42.8)
-    assert pytest.approx(-17.5) == cfg.get_float_or('x', -17.5)
+    assert pytest.approx(42.8) == cfg.float_or('x', 42.8)
+    assert pytest.approx(-17.5) == cfg.float_or('x', -17.5)
 
     with pytest.raises(pyc.TypeError):
-        cfg.get_float_or('str', 3.5)
+        cfg.float_or('str', 3.5)
 
     # Implicit casts are allowed if the value is exactly
     # representable in the target type:
-    assert pytest.approx(42.0) == cfg.get_float('i')
-    assert isinstance(cfg.get_float('i'), float)
+    assert pytest.approx(42.0) == cfg.float('i')
+    assert isinstance(cfg.float('i'), float)
     assert isinstance(cfg['i'], int)
 
     # Set a float
-    cfg.set_float('my-flt1', 1.5e4)
+    cfg['my-flt1'] = 1.5e4
     assert 'my-flt1' in cfg
     assert isinstance(cfg['my-flt1'], float)
     assert pytest.approx(1.5e4) == cfg['my-flt1']
@@ -237,16 +237,16 @@ def test_floating_point():
         cfg['str'] = 20.5
 
     with pytest.raises(pyc.TypeError):
-        cfg.set_float('b', 2.0)
+        cfg['b'] = 2.0
 
     # Similar to querying, however, if a value can be exactly represented
     # by the target type, it is implicitly cast:
     cfg['i'] = 3.0
-    assert pytest.approx(3.0) == cfg.get_float('i')
+    assert pytest.approx(3.0) == cfg.float('i')
     assert 3 == cfg['i']
     assert isinstance(cfg['i'], int)  # But the type is not changed
 
-    cfg.set_float('flt2', -1)
+    cfg['flt2'] = -1
     assert pytest.approx(-1) == cfg['flt2']
     assert isinstance(cfg['flt2'], float)
 
@@ -268,33 +268,33 @@ def test_str():
 
     # Try to load as an invalid/incompatible type --> TypeError
     with pytest.raises(pyc.TypeError):
-        cfg.get_str('flag')
+        cfg.str('flag')
     with pytest.raises(TypeError):
-        cfg.get_str('flag')
+        cfg.str('flag')
 
     with pytest.raises(pyc.TypeError):
-        cfg.get_str('num')
+        cfg.str('num')
     with pytest.raises(TypeError):
-        cfg.get_str('num')
+        cfg.str('num')
 
     with pytest.raises(pyc.TypeError):
-        cfg.get_bool('str')
+        cfg.bool('str')
 
     with pytest.raises(pyc.TypeError):
-        cfg.get_int('str')
+        cfg.int('str')
 
     # Retrieve value as intended:
     assert 'value' == cfg['str']
-    assert 'value' == cfg.get_str('str')
+    assert 'value' == cfg.str('str')
     assert isinstance(cfg['str'], str)
-    assert isinstance(cfg.get_str('str'), str)
+    assert isinstance(cfg.str('str'), str)
 
     # Use default values if the key is not found:
-    assert 'A' == cfg.get_str_or('unknown', 'A')
+    assert 'A' == cfg.str_or('unknown', 'A')
 
     # ... but an invalid type remains an invalid type:
     with pytest.raises(pyc.TypeError):
-        cfg.get_str_or('flag', 'A')
+        cfg.str_or('flag', 'A')
 
     # Changing a value is allowed
     cfg['str'] = 'changed'
@@ -305,7 +305,7 @@ def test_str():
         cfg['str'] = True
 
     with pytest.raises(pyc.TypeError):
-        cfg.set_str('num', '123')
+        cfg['num'] = '123'
 
 
 def test_date():
@@ -322,17 +322,17 @@ def test_date():
     # Querying a date
     day = datetime.date(2022, 12, 1)
     assert cfg['day'] == day
-    assert cfg.get_date('day') == day
+    assert cfg.date('day') == day
     assert isinstance(cfg['day'], datetime.date)
 
     with pytest.raises(pyc.KeyError):
-        cfg.get_date('no-such-key')
+        cfg.date('no-such-key')
 
     with pytest.raises(pyc.TypeError):
-        cfg.get_time('day')
+        cfg.time('day')
 
     with pytest.raises(pyc.TypeError):
-        cfg.get_datetime('day')
+        cfg.datetime('day')
 
     with pytest.raises(pyc.TypeError):
         cfg['day'] = datetime.time(8, 30)
@@ -355,17 +355,17 @@ def test_time():
     # Querying a time
     tm = datetime.time(8, 30, 1)
     assert cfg['time'] == tm
-    assert cfg.get_time('time') == tm
+    assert cfg.time('time') == tm
     assert isinstance(cfg['time'], datetime.time)
 
     with pytest.raises(pyc.KeyError):
-        cfg.get_time('no-such-key')
+        cfg.time('no-such-key')
 
     with pytest.raises(pyc.TypeError):
-        cfg.get_date('time')
+        cfg.date('time')
 
     with pytest.raises(pyc.TypeError):
-        cfg.get_datetime('time')
+        cfg.datetime('time')
 
     with pytest.raises(pyc.TypeError):
         cfg['time'] = datetime.date.today()
@@ -391,18 +391,18 @@ def test_datetime():
     dt = datetime.datetime(2000, 2, 29, 17, 30, 15, 123000)
     assert isinstance(cfg['dt1'], datetime.datetime)
     assert cfg['dt1'] == dt
-    assert cfg.get_datetime('dt1') == dt
+    assert cfg.datetime('dt1') == dt
     assert cfg['dt1'].tzinfo is None
 
     with pytest.raises(pyc.KeyError):
-        cfg.get_datetime('no-such-key')
-    assert cfg.get_datetime_or('no-such-key', dt) == dt
+        cfg.datetime('no-such-key')
+    assert cfg.datetime_or('no-such-key', dt) == dt
 
     # A date/time cannot be implicitly converted to a datetime
     with pytest.raises(pyc.TypeError):
-        cfg.get_datetime('day')
+        cfg.datetime('day')
     with pytest.raises(pyc.TypeError):
-        cfg.get_datetime_or('time', dt)
+        cfg.datetime_or('time', dt)
 
     # pyzeugkiste will set the offset of the datetime's timezone info
     assert cfg['dt1'].tzinfo is None
@@ -442,15 +442,26 @@ def test_list():
         """)
     assert 3 == len(cfg)
 
-    assert isinstance(cfg['numbers'], list)
+    assert isinstance(cfg['numbers'], type(cfg))
     assert 3 == len(cfg['numbers'])
+    assert isinstance(cfg['numbers'].list(), list)
+    assert 3 == len(cfg['numbers'].list())
 
-    # The configuration will return a *copy*. Changing it won't work:
+    # The configuration will return a view which allows changing the underlying
+    # parameter.
     assert cfg['numbers'][2] == 3
     cfg['numbers'][2] = 17
-    assert cfg['numbers'][2] == 3
+    assert cfg['numbers'][2] == 17
+    assert cfg['numbers[2]'] == 17
 
-    assert isinstance(cfg['nested'], list)
+    assert isinstance(cfg['nested'], type(cfg))
+    lst = cfg['nested'].list()
+    assert isinstance(lst, list)
+    assert 4 == len(lst)
+    assert isinstance(lst[0], str)
+    assert isinstance(lst[1], int)
+    assert isinstance(lst[2], list)
+    assert isinstance(lst[3], dict)
 
     assert isinstance(cfg['nested[0]'], str)
     assert isinstance(cfg['nested'][0], str)
@@ -458,8 +469,10 @@ def test_list():
     assert isinstance(cfg['nested[1]'], int)
     assert isinstance(cfg['nested'][1], int)
 
-    assert isinstance(cfg['nested[2]'], list)
-    assert isinstance(cfg['nested'][2], list)
+    assert isinstance(cfg['nested[2]'], type(cfg))
+    assert isinstance(cfg['nested'][2], type(cfg))
+    assert cfg.type('nested[2]') == pyc.ConfigType.List
+    assert cfg['nested'][2].type() == pyc.ConfigType.List
     assert 3 == len(cfg['nested'][2])
 
     assert isinstance(cfg['nested[3]'], type(cfg))
@@ -477,25 +490,40 @@ def test_list():
 
     # Lists can be replaced by any other list
     cfg['nested'] = []
+    assert cfg.type('nested') == pyc.ConfigType.List
+    assert cfg['nested'].type() == pyc.ConfigType.List
     assert len(cfg['nested']) == 0
 
     lst = [1, True, 3.5, 'str', datetime.date.today(), datetime.datetime.now()]
     cfg['nested'] = lst
-    assert lst == cfg['nested']
+    assert cfg.type('nested') == pyc.ConfigType.List
+    assert cfg['nested'].type() == pyc.ConfigType.List
+    assert lst == cfg['nested'].list()
 
     lst = [1, True, 'str', ['a', 'nested', 'lst']]
     cfg['nested'] = lst
-    assert lst == cfg['nested']
+    assert cfg.type('nested') == pyc.ConfigType.List
+    assert cfg['nested'].type() == pyc.ConfigType.List
+    assert lst == cfg['nested'].list()
 
-    # The list can also contain Configuration instances
-    another_cfg = pyc.Configuration()
+    # Test a list that contains a Config instance
+    another_cfg = pyc.Config()
     another_cfg['name'] = 'value'
     another_cfg['age'] = 23
     another_cfg['date'] = datetime.date.today()
 
     lst = [another_cfg, 1, True]
     cfg['nested'] = lst
-    assert lst == cfg['nested']
+    assert cfg.type('nested') == pyc.ConfigType.List
+    assert cfg['nested'].type() == pyc.ConfigType.List
+    assert cfg.type('nested[0]') == pyc.ConfigType.Group
+    assert cfg['nested'][0].type() == pyc.ConfigType.Group
+    # The 'list()' conversion will also convert 'another_cfg'
+    # to a dict, thus we can't use the simple comparison:
+    # assert lst == cfg['nested'].list()
+    # But element-wise comparison works:
+    for idx in range(len(lst)):
+        assert lst[idx] == cfg['nested'][idx]
 
     # The list can also contain dictionaries
     lst = [1, 2, {"foo": "bar", "str": "value"}]
@@ -513,17 +541,39 @@ def test_tuple():
 
     cfg['from-tuple'] = (1, 2)
     assert 'from-tuple' in cfg
-    assert isinstance(cfg['from-tuple'], list)
+    # __getitem__ will return a reference/view
+    assert isinstance(cfg['from-tuple'], type(cfg))
+    # But this view can be converted to a list
+    lst1 = cfg['from-tuple'].list()
+    lst2 = cfg.list('from-tuple')
+    assert isinstance(lst1, list)
+    assert isinstance(lst2, list)
+    assert lst1 == lst2
 
     cfg['numbers'] = (42, )
     assert len(cfg['numbers']) == 1
     assert cfg['numbers'][0] == 42
 
+    cfg['arr'] = [[1, 2, 3], [4, 5, 6]]
+    cfg['arr[0]'] = (10, 20)
+    assert 2 == len(cfg['arr'][0])
+    assert 2 == len(cfg['arr[0]'])
+    assert 10 == cfg['arr[0][0]']
+    assert 10 == cfg['arr'][0][0]
+    assert 20 == cfg['arr[0][1]']
+    assert 20 == cfg['arr'][0][1]
+
+    cfg['arr'][1] = (17, )
+    assert 1 == len(cfg['arr'][1])
+    assert 1 == len(cfg['arr[1]'])
+    assert 17 == cfg['arr[1][0]']
+    assert 17 == cfg['arr'][1][0]
+
 
 def test_group():
     cfg = pyc.load_toml_str("""
         numbers = [1, 2, 3]
-        
+
         [scalars]
         int = 3
         str = 'value'
@@ -539,25 +589,25 @@ def test_group():
 
     with pytest.raises(pyc.TypeError):
         cfg['lvl1.lvl2'] = False
-    
+
     with pytest.raises(pyc.TypeError):
         cfg['lvl1.lvl2.flt'] = 'value'
-    
+
     cfg['lvl1.lvl2.flt'] = 2
     assert cfg['lvl1.lvl2.flt'] == pytest.approx(2)
     # But it should still be a floating point parameter
     assert isinstance(cfg['lvl1.lvl2.flt'], float)
 
-    # __getitem__ returns a copy. Thus, the following will only change
-    # a temporary!
+    # __getitem__ returns a reference/view. Thus, the following will
+    # also change the value!
     cfg['lvl1']['lvl2']['flt'] = 4
-    assert cfg['lvl1.lvl2.flt'] == pytest.approx(2)
+    assert cfg['lvl1.lvl2.flt'] == pytest.approx(4)
 
 
 def test_dict_set():
     cfg_toml = pyc.load_toml_str("""
         int = 1
-        
+
         [lvl1]
         str = 'value'
 
@@ -566,7 +616,7 @@ def test_dict_set():
         numbers = [1, 2, 3]
         nested = [{ name = 'foo' }, { name = 'bar', str = 'value' }]
         """)
-    
+
     pydict = {
         "int": 1,
         "lvl1": {
@@ -582,11 +632,21 @@ def test_dict_set():
         }
     }
 
-    cfg = pyc.Configuration()
+    cfg = pyc.Config()
+    assert cfg.empty()
+    assert 0 == len(cfg)
+
     cfg['dict'] = pydict
 
     assert isinstance(cfg['dict'], type(cfg))
+    assert cfg['dict'] == cfg_toml
+
+    print(cfg['dict'].copy().to_toml(), "\n", cfg_toml.to_toml())
+    assert cfg['dict'].copy() == cfg_toml
+
     cfg = cfg['dict']
+    print(cfg.to_toml())
+    print(cfg_toml.to_toml())
     assert cfg == cfg_toml
 
     tmp = cfg.to_dict()
@@ -602,7 +662,8 @@ def test_dict_set():
 
     lst = [1, 2, {"foo": 3, "3": "value"}]
     cfg['mixed-lst'] = lst
-    assert isinstance(cfg['mixed-lst'], list)
+    assert isinstance(cfg['mixed-lst'], type(cfg))
+    assert cfg.type('mixed-lst') == pyc.ConfigType.List
     assert 3 == len(cfg['mixed-lst'])
     assert 1 == cfg['mixed-lst[0]']
     assert 2 == cfg['mixed-lst[1]']
@@ -615,7 +676,7 @@ def test_dict_set():
     lst = [1, 2, {"foo": "bar", 3: "value"}]
     with pytest.raises(pyc.TypeError):
         cfg['mixed-lst'] = lst
-    
+
     # Dictionary keys must also be bare keys:
     lst = [1, 2, {"fo o": "bar", "3": "value"}]
     with pytest.raises(pyc.TypeError):
@@ -790,19 +851,19 @@ def test_keys():
 
     with pytest.raises(pyc.KeyError):
         cfg[' inv.alid '] = 3
-    
+
     with pytest.raises(pyc.KeyError):
         cfg['inv.alid '] = 3
 
     with pytest.raises(pyc.KeyError):
         cfg['inv. alid'] = 3
-    
+
     with pytest.raises(pyc.KeyError):
         cfg['inv.al id'] = 3
 
     with pytest.raises(pyc.KeyError):
         cfg['inv alid'] = 3
-    
+
     cfg['valid'] = 3
     assert 'valid' in cfg
     assert 3 == cfg['valid']
@@ -820,28 +881,23 @@ def test_none():
 
     with pytest.raises(pyc.TypeError):
         cfg['flag'] = None
-    
-    # Note, however, that None will be converted by pybind11 to 'False' if
-    # used as method parameter:
-    cfg.set_bool('flag', None)
-    assert not cfg['flag']
-    
+
     # Parameter conversion fails (pybind11) --> this will raise a standard
     # TypeError:
     with pytest.raises(TypeError):
-        cfg.set_int('int', None)
-    
+        cfg['int'] = None
+
     # Parameter conversion fails (pybind11) --> this will raise a standard
     # TypeError:
     with pytest.raises(TypeError):
-        cfg.set_str('str', None)
+        cfg['str'] = None
 
     with pytest.raises(pyc.TypeError):
         cfg['lst[0]'] = None
 
     with pytest.raises(pyc.TypeError):
         cfg['none-lst'] = [1, 2, None]
-    
+
     with pytest.raises(pyc.TypeError):
         cfg['tbl'] = { "param": 1, "another": None }
 
@@ -862,33 +918,33 @@ def test_delete():
         [lists]
         lst = [-42, 3, 1.5]
         """)
-    
+
     with pytest.raises(pyc.KeyError):
         del cfg['no-such-key']
 
     del cfg['str']
     assert 'str' not in cfg
 
-    # Will remove the group only from the COPY, not the original configuration!
     del cfg['scalars']['numeric']
-    assert 'scalars.numeric' in cfg
-    del cfg['scalars.numeric']
     assert 'scalars.numeric' not in cfg
 
-    # Similarly, lists are also returned by-value (i.e. we're deleting from
-    # a copy)
-    del cfg['lists']['lst'][2]
-    assert len(cfg['lists']['lst']) == 3
+    with pytest.raises(pyc.KeyError):
+        del cfg['scalars.numeric']
 
-    del cfg['lists.lst'][2]
-    assert len(cfg['lists.lst']) == 3
+    # List elements cannot be deleted, this will raise a standard TypeError
+    # due to the pybind11 lookup failure:
+    with pytest.raises(TypeError):
+        del cfg['lists']['lst'][2]
 
-    # Deleting a single element from a list is not allowed
+    with pytest.raises(TypeError):
+        del cfg['lists.lst'][2]
+
+    # If the index is part of the "key", a pyc.KeyError will be raised:
     with pytest.raises(pyc.KeyError):
         del cfg['lists.lst[2]']
     with pytest.raises(pyc.KeyError):
         del cfg['lists.lst[0]']
-    
+
     # But we can delete the whole list
     del cfg['lists.lst']
     assert 'lists.lst' not in cfg
