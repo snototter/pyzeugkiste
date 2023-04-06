@@ -439,8 +439,14 @@ def test_list():
             [1, 2, 3],
             { name = 'test', flt = 2.5}
         ]
+
+        scalar = 'value'
+
+        [group]
+        numbers = [1, 2]
+        int = 123
         """)
-    assert 3 == len(cfg)
+    assert 5 == len(cfg)
 
     assert isinstance(cfg['numbers'], type(cfg))
     assert 3 == len(cfg['numbers'])
@@ -534,6 +540,50 @@ def test_list():
     assert 2 == len(cfg['nested[2]'])
     assert 'bar' == cfg['nested[2].foo']
     assert 'value' == cfg['nested[2].str']
+
+    # Test appending values to a list
+    with pytest.raises(pyc.TypeError):
+        # Can't append to the root node (which is a group)
+        cfg.append('value')
+
+    with pytest.raises(pyc.TypeError):
+        # Can't append to a sub-group
+        cfg['group'].append('value')
+
+    with pytest.raises(AttributeError):
+        # Can't append to a scalar value (as __getitem__ will return
+        # the built-in type)
+        cfg['scalar'].append(3)
+
+    # But we can append to an existing list. Note that it also
+    # works with a view/reference (i.e. "nums")
+    nums = cfg['group']['numbers']
+    cfg['group.numbers'].append(3.5)
+    assert 3 == len(nums)
+    assert pytest.approx(3.5) == nums[2]
+    nums.append('str')
+    assert 4 == len(nums)
+    assert 4 == len(cfg['group.numbers'])
+    assert 'str' == cfg['group.numbers[3]']
+    assert 'str' == nums[3]
+
+    lst = [1, '2', {'val': 3}]
+    nums.append(lst)
+    assert 5 == len(nums)
+    assert 3 == len(nums[4])
+    assert 1 == nums[4][0]
+    assert '2' == nums[4][1]
+    assert 3 == nums[4][2]['val']
+
+    # 'Append' can be used to create a new list:
+    assert 'new-lst' not in cfg
+    cfg.append('value', key='new-lst')
+    assert 'new-lst' in cfg
+    assert 1 == len(cfg['new-lst'])
+    assert 'value' == cfg['new-lst'][0]
+    cfg['new-lst'].append(42)
+    assert 2 == len(cfg['new-lst'])
+    assert 42 == cfg['new-lst'][1]
 
 
 def test_tuple():
@@ -641,12 +691,9 @@ def test_dict_set():
     assert isinstance(cfg['dict'], type(cfg))
     assert cfg['dict'] == cfg_toml
 
-    print(cfg['dict'].copy().to_toml(), "\n", cfg_toml.to_toml())
     assert cfg['dict'].copy() == cfg_toml
 
     cfg = cfg['dict']
-    print(cfg.to_toml())
-    print(cfg_toml.to_toml())
     assert cfg == cfg_toml
 
     tmp = cfg.to_dict()
@@ -919,6 +966,9 @@ def test_delete():
         lst = [-42, 3, 1.5]
         """)
 
+    subgroup1 = cfg['scalars']
+    subgroup2 = cfg['scalars.numeric']
+
     with pytest.raises(pyc.KeyError):
         del cfg['no-such-key']
 
@@ -948,3 +998,265 @@ def test_delete():
     # But we can delete the whole list
     del cfg['lists.lst']
     assert 'lists.lst' not in cfg
+
+    # Caveat: deletion also affects the views/references
+    copy = subgroup1.copy()
+    assert 'flag' in cfg['scalars']
+    assert 'flag' in subgroup1
+    with pytest.raises(pyc.KeyError):
+        # "scalars.numeric" has already been deleted. Thus, every
+        # call on subgroup2 will raise a KeyError
+        subgroup2.keys()
+
+    del cfg['scalars']
+    assert 'scalars' not in cfg
+    with pytest.raises(pyc.KeyError):
+        # As above, the sub-group viewed by this object no longer exists:
+        subgroup1.empty()
+    # But the deep copy must not be affected by the deletion:
+    assert 'flag' in copy
+
+
+def test_access():
+    cfg = pyc.load_toml_str("""
+        int = 3
+
+        lst = [1, 2, 3]
+
+        [[persons]]
+        name = 'n1'
+
+        [[persons]]
+        name = 'n2'
+
+        [group]
+        int = 17
+        lst = [4]
+        nested = [[1, 2, 3], [4], 5, { name = 'n3' }]
+        """)
+
+    with pytest.raises(pyc.KeyError):
+        cfg[0]
+
+    with pytest.raises(pyc.KeyError):
+        cfg['no-such-key']
+
+    with pytest.raises(pyc.KeyError):
+        cfg['group.no-such-key']
+
+    with pytest.raises(pyc.KeyError):
+        cfg['group']['no-such-key']
+
+    with pytest.raises(pyc.KeyError):
+        cfg['lst']['0']
+
+    with pytest.raises(pyc.KeyError):
+        cfg['lst'][17]
+
+    with pytest.raises(pyc.TypeError):
+        cfg[None]
+
+    with pytest.raises(pyc.TypeError):
+        cfg['lst'][None]
+
+    # Test __getitem__
+    assert 4 == len(cfg)
+    assert 3 == cfg['int']
+    assert 3 == len(cfg['lst'])
+
+    assert 2 == len(cfg['persons'])
+    assert isinstance(cfg['persons'], type(cfg))
+    assert pyc.ConfigType.List == cfg['persons'].type()
+    assert pyc.ConfigType.List == cfg.type('persons')
+    assert 'n1' == cfg['persons'][0]['name']
+    assert 'n1' == cfg['persons[0].name']
+    assert 'n2' == cfg['persons'][1]['name']
+    assert 'n2' == cfg['persons[1].name']
+
+    assert 3 == len(cfg['group'])
+    assert 1 == len(cfg['group.lst'])
+    assert 1 == len(cfg['group']['lst'])
+
+    assert 4 == len(cfg['group.nested'])
+    assert 4 == len(cfg['group']['nested'])
+
+    assert cfg['group.lst'] != cfg['group.nested[0]']
+    assert cfg['group.lst'] == cfg['group.nested[1]']
+    assert cfg['group']['lst'] == cfg['group.nested[1]']
+    assert cfg['group']['lst'] == cfg['group']['nested[1]']
+    assert cfg['group']['lst'] == cfg['group']['nested'][1]
+
+    # Test __setitem__ with scalars
+    cfg['new-str'] = ''
+    assert 'new-str' in cfg
+    assert pyc.ConfigType.String == cfg.type('new-str')
+    assert isinstance(cfg['new-str'], str)
+    assert '' == cfg['new-str']
+
+    cfg['group.num'] = 17.5
+    assert 'group.num' in cfg
+    assert 'num' in cfg['group']
+    assert isinstance(cfg['group.num'], float)
+    assert pyc.ConfigType.FloatingPoint == cfg.type('group.num')
+    assert pytest.approx(17.5) == cfg['group.num']
+    assert isinstance(cfg['group']['num'], float)
+    assert pyc.ConfigType.FloatingPoint == cfg['group'].type('num')
+    assert pytest.approx(17.5) == cfg['group']['num']
+
+    today = datetime.date.today()
+    cfg['group']['date'] = today
+    assert 'group.date' in cfg
+    assert 'date' in cfg['group']
+    assert isinstance(cfg['group.date'], datetime.date)
+    assert pyc.ConfigType.Date == cfg.type('group.date')
+    assert today == cfg['group.date']
+    assert isinstance(cfg['group']['date'], datetime.date)
+    assert pyc.ConfigType.Date == cfg['group'].type('date')
+    assert today == cfg['group']['date']
+
+    # Test __setitem__ on lists
+    with pytest.raises(pyc.TypeError):
+        cfg['lst'][1] = today  # Type cannot be changed
+    cfg['lst'][1] = 42.0  # But a compatible numeric value can be used
+    with pytest.raises(AttributeError):
+        # __getitem__ returns the integer value (built-in type), thus
+        # we can't access 'type()'
+        cfg['lst'][1].type()
+    assert pyc.ConfigType.Integer == cfg.type('lst[1]')
+    assert 42 == cfg['lst'][1]
+    assert 42 == cfg['lst[1]']
+
+    with pytest.raises(pyc.TypeError):
+        # As above, we can't change the type
+        cfg['group']['lst'][0] = [1, 2, 3, 4]
+    # We can, however, replace an existing list:
+    assert 3 == len(cfg['group.nested[0]'])
+    cfg['group']['nested'][0] = [1, 2, 3, 4]
+    assert 4 == len(cfg['group']['nested'][0])
+    assert 4 == len(cfg['group.nested[0]'])
+    assert pyc.ConfigType.List == cfg.type('group.nested[0]')
+    assert pyc.ConfigType.List == cfg['group.nested[0]'].type()
+    assert pyc.ConfigType.List == cfg['group.nested'][0].type()
+    assert pyc.ConfigType.List == cfg['group']['nested'][0].type()
+
+    # Similarly, we can replace an existing list.
+    # Note that both list and tuple are supported:
+    cfg['lst'] = list(range(20))
+    assert 20 == len(cfg['lst'])
+    # ... or create a new one
+    cfg['numbers'] = tuple(range(50))
+    assert 50 == len(cfg['numbers'])
+
+    # Test __setitem__ for groups
+    other = pyc.Config()
+    assert other.empty()
+    assert 0 == len(other)
+    assert other != cfg
+
+    other['myval'] = True
+    assert not other.empty()
+
+    other['nested-config'] = cfg
+    assert other != cfg
+    assert other['nested-config'] == cfg
+    # Ensure that the assignment *copied* the configuration
+    cfg['int'] = 1234
+    assert other['nested-config'] != cfg
+
+
+def test_equality():
+    c1 = pyc.load_toml_str("""
+        int = 3
+
+        [table1]
+        int = 42
+        dt = { date = 2023-04-01, time = 08:00:30 }
+        lst = [1, 2, 3.4]
+        nested = [[1, 2], [3], 4, { foo = 'bar', lst = [0.5, 1] }]
+
+        [table2]
+        str = 'value'
+        """)
+    assert c1 == c1
+    assert c1['table1'] == c1['table1']
+    assert c1['table1'] != c1['table2']
+    assert c1['table1']['lst'] == c1['table1.lst']
+    assert c1['table1']['nested'] == c1['table1.nested']
+    assert c1['table1']['lst'] != c1['table1.nested']
+    assert c1['table2'] == c1['table2']
+
+    c2 = pyc.load_toml_str("""
+        [group1]
+        int = 42
+        dt = { date = 2023-04-01, time = 08:00:30 }
+        lst = [1, 2, 3.4]
+        nested = [[1, 2], [3], 4, { foo = 'bar', lst = [0.5, 1] }]
+
+        [group2]
+        str = 'value'
+        nested-list = [[1, 2], [3], 4, { foo = 'bar', lst = [0.5, 1] }]
+        """)
+
+    assert c1 != c2
+    assert c1['table1'] == c2['group1']
+    assert c1['table2'] != c2['group2']
+    assert c1['table1.nested'] == c2['group2.nested-list']
+    assert c1['table1.nested'] == c2['group2']['nested-list']
+    assert c1['table1']['nested'] == c2['group2']['nested-list']
+    assert c2['group1']['nested'] == c2['group2']['nested-list']
+
+
+def test_copy():
+    c1 = pyc.load_toml_str("""
+        int = 3
+
+        [group]
+        int = 42
+        lst = [1, 2, 3.4]
+        str = 'value'
+        """)
+    # Deep copy of the full configuration instance:
+    c2 = c1.copy()
+    assert c1 == c2
+
+    c2['int'] = 4
+    assert c1 != c2
+
+    # Deep copy of a sub-group:
+    c2 = c1['group'].copy()
+    assert c1 != c2
+    assert c1['group'] == c2
+
+    c2['lst'][1] = 4
+    assert c1['group'] != c2
+
+    # Deep copy of a list is not supported, because the direct child
+    # parameters of a config root must be named parameters:
+    with pytest.raises(pyc.TypeError):
+        c2 = c1['group']['lst'].copy()
+
+
+def test_clear():
+    cfg = pyc.load_toml_str("""
+        str = 'value'
+
+        [group1]
+        int = 42
+        dt = { date = 2023-04-01, time = 08:00:30 }
+        lst = [1, 2, 3.4]
+        nested = [[1, 2], [3], 4, { foo = 'bar', lst = [0.5, 1] }]
+
+        [group2]
+        str = 'value'
+        nested-list = [[1, 2], [3], 4, { foo = 'bar', lst = [0.5, 1] }]
+        """)
+
+    cfg['group2'].clear()
+    assert cfg['group2'].empty()
+
+    cfg['group1']['nested'].clear()
+    assert cfg['group1']['nested'].empty()
+    assert not cfg['group1'].empty()
+
+    cfg.clear()
+    assert cfg.empty()

@@ -16,110 +16,6 @@
 #include <utility>
 #include <vector>
 
-/*
-# TODO: make test suite:
-
-from pyzeugkiste import config
-import datetime
-c = config.load_toml_str("""
-    day = 2022-12-01
-    time = 08:30:00
-    """)
-c['day']
-c['time']
-
-c['day'] = datetime.date(2020, 10, 20)
-c['time'] = datetime.time(10, 8, 30)
-c['day']
-c['time']
-
-now = datetime.datetime.now()
-c['day'] = now  # should fail
-c['day'] = now.date()
-c['time'] = now  # should fail
-c['time'] = now.time()
-c['not-yet-supported'] = now
-c['day']
-c['time']
-c['dt'] = now  # should work
-
-import pytz
-now_utc = now.astimezone(pytz.utc)
-
-c['utc'] = now_utc
-c['utc']
-
-now_est = now.astimezone(pytz.timezone('EST'))
-c['est'] = now_est
-c['est']
-assert c['est'] == c['utc']
-
-assert str(c['est']) != str(now_est)
-assert c['est'] == now_est
-
-
-c['a'] = now.date()
-c['b'] = now.time()
-print(c.to_toml())
-
-
-from pyzeugkiste import config
-
-c = config.load_toml_str("""
-    my-bool = true
-    int = 1
-    flt = 3.5
-    str = 'value'
-    day = 2022-12-01
-    lst = [1, 2, 3, 4]
-    mixed1 = [1, 3.5, 'str']
-    mixed2 = [1, 'value', { key = 'foo', value = 'bar' }]
-
-    [tbl]
-    vi = 2
-    vf = 1.5e3
-    """)
-c.list_parameter_names()
-
-c['str']
-c['flt']
-c['float']
-c['int']
-c['day']
-c['lst']
-c['mixed1']
-c['mixed2']
-c['tbl']
-c['tbl.vi']
-
-c['my-bool'] = False # Should work
-c['my-bool']
-c['my-bool'] = 'fail' # Should fail
-
-c['tbl.vi'] = 42
-c['tbl.vi'] = 0.5
-c['tbl.vi'] = True
-c['tbl.vi'] = 'abc'
-c['tbl.vi'] = [1, 2]
-c['tbl.vi']
-
-c['str'] = 3
-
-'str' in c
-'tbl' in c
-
-c['foo'] = 123.2
-c['foo']
-c['foo'] = 10
-c['foo']
-c['foo'] = False # fail
-
-now.utcoffset() -> None
-now_utc.utcoffset() -> timedelta
-
-
-*/
-
 namespace werkzeugkiste::bindings::detail {
 class Config;
 
@@ -144,7 +40,8 @@ pybind11::object DateTimeToPyObj(const werkzeugkiste::config::date_time &dt);
 werkzeugkiste::config::Configuration PyDictToConfiguration(
     const pybind11::dict &d);
 void ExtractPyIterable(werkzeugkiste::config::Configuration &cfg,
-                       std::string_view key, pybind11::handle lst);
+    std::string_view key,
+    pybind11::handle lst);
 }  // namespace werkzeugkiste::bindings::detail
 
 #include <werkzeugkiste-bindings/detail/config_bindings_types.h>
@@ -156,7 +53,9 @@ inline void RegisterConfigUtils(pybind11::module &main_module) {
   m.doc() = R"doc(
     Configuration file utils.
 
-    TODO summary
+    Allows a unified handling of different configuration formats, *i.e.*
+    `TOML <https://toml.io/en/>`__, `JSON <https://www.json.org/>`__ and
+    `libconfig <http://hyperrealm.github.io/libconfig/>`__.
     )doc";
 
   detail::RegisterConfigTypes(m);
@@ -165,24 +64,34 @@ inline void RegisterConfigUtils(pybind11::module &main_module) {
     Encapsulates parameters.
 
     This class provides dictionary-like access to parameters and
-    provides several additional utilities, such as replacing placeholders, adjusting
-    relative file paths, merging/nesting configurations, *etc.*
+    provides several additional utilities, such as replacing placeholders,
+    adjusting relative file paths, *etc.*
 
-    This utitility is intended for *"typical"* configuration scenarios. Thus,
-    it supports the following basic types: :class:`bool`, :class:`int`,
-    :class:`float`, and :class:`str`. As it uses `TOML <https://toml.io/en/>`__
-    under the hood, it also supports explicit date and time types.
-    Parameters can be combined into a :class:`list`, or into parameter
-    groups, which correspond to *tables* in `TOML <https://toml.io/en/>`__,
-    *groups* in `libconfig <http://hyperrealm.github.io/libconfig/>`__,
-    *objects* in `JSON <https://www.json.org/>`__ or :class:`dict` in python.
+    This utitility class is intended for *"typical"*, human-friendly
+    configuration scenarios and, similar to `TOML <https://toml.io/en/>`__,
+    supports the following data types:
 
-    **Type-checked access** is provided via :meth:`get_int`, :meth:`get_str`,
-    *etc.* or allow default values if a *key* does not exist via
-    :meth:`get_int_or`, :meth:`get_float_or`, *etc.*
-    Parameters can be set via corresponding setters, such as :meth:`set_bool`.
-    For convenience, access is also supported via :meth:`__getitem__`
-    and :meth:`__setitem__`.
+      * Basic scalars: :class:`bool`, :class:`int`, :class:`float`, and
+        :class:`str`.
+      * Date time types: :class:`~datetime.date`, :class:`~datetime.time`,
+        and :class:`~datetime.datetime`.
+      * Aggregate types, *i.e.* :class:`list` and collections/groups
+        (python equivalent: :class:`dict`).
+
+    The following configuration formats are supported:
+
+      * `TOML <https://toml.io/en/>`__
+      * `JSON <https://www.json.org/>`__
+      * `libconfig <http://hyperrealm.github.io/libconfig/>`__
+      * `YAML <https://yaml.org/>`__ (only for exporting)
+
+    **Default access** is supported via the indexing operator ``[]``,
+    *i.e.* :meth:`__getitem__` and :meth:`__setitem__`.
+
+    **Explicitly type-checked access** is supported via :meth:`int`,
+    :meth:`date`, *etc.*
+    To return default values if a *key* does not exist, :meth:`int_or`,
+    :meth:`float_or`, *etc.* can be used.
 
     **Implicit numeric casts** will be performed if the value can be **exactly
     represented** in the target type.
@@ -192,55 +101,55 @@ inline void RegisterConfigUtils(pybind11::module &main_module) {
     :class:`~pyzeugkiste.config.TypeError` would be raised.
 
     .. code-block:: python
-         :caption: Example
+       :caption: Example
 
-         from pyzeugkiste import config as pyc
+       from pyzeugkiste import config as pyc
 
-         cfg = pyc.load_toml_str("""
-             int = 23
-             flt = 1.5
-             str = "value"
-             bool = false
+       cfg = pyc.load_toml_str("""
+           int = 23
+           flt = 1.5
+           str = "value"
+           bool = false
 
-             [replacements]
-             work_dir = "/home/%USR%/work"
-             output_file = "%OUT%/dump.bin"
+           [replacements]
+           work_dir = "/home/%USR%/work"
+           output_file = "%OUT%/dump.bin"
 
-             [disk]
-             network_config = "configs/net.toml"
-             model_path = "models/latest.bin"
-             image_path = "images/"
-             """)
+           [disk]
+           network_config = "configs/net.toml"
+           model_path = "models/latest.bin"
+           image_path = "images/"
+           """)
 
-         'str' in cfg    # Returns True
+       'str' in cfg    # Returns True
 
-         cfg['flt']      # Returns a float
-         cfg['flt'] = 3  # Parameter is still a float
+       cfg['flt']      # Returns a float
+       cfg['flt'] = 3  # Parameter is still a float
 
-         cfg['my_str'] = 'value'  # Creates a new string parameter
-         cfg.str('my_str')        # Alternative access
+       cfg['my_str'] = 'value'  # Creates a new string parameter
+       cfg.str('my_str')        # Alternative access
 
-         cfg.int_or('unknown', -1)  # Returns the fallback/default value
+       cfg.int_or('unknown', -1)  # Returns the fallback/default value
 
-         cfg['unknown']  # Raises a KeyError
-         cfg.int('str')  # Raises a TypeError
+       cfg['unknown']  # Raises a KeyError
+       cfg.int('str')  # Raises a TypeError
 
-         cfg.replace_placeholders([
-             ('%USR%', 'whoami'),
-             ('%OUT%', '/path/to/output')])
+       cfg.replace_placeholders([
+           ('%USR%', 'whoami'),
+           ('%OUT%', '/path/to/output')])
 
-         cfg.adjust_relative_paths(
-             '/path/to/workdir',
-             ['network_config', 'disk.*path'])
+       cfg.adjust_relative_paths(
+           '/path/to/workdir',
+           ['network_config', 'disk.*path'])
 
-         cfg.load_nested('disk.network_config')
-         cfg['disk.network_config']  # Is now a group/dictionary
+       cfg.load_nested('disk.network_config')
+       cfg['disk.network_config']  # Is now a group/dictionary
 
-         print(cfg.to_toml())
+       print(cfg.to_toml())
     )doc";
 
   pybind11::class_<detail::Config> wrapper(m, "Config", doc_string.c_str());
-  wrapper.def(pybind11::init<>());
+  wrapper.def(pybind11::init<>(), "Creates an empty configuration.");
 
   //---------------------------------------------------------------------------
   // Loading a configuration
@@ -289,19 +198,6 @@ inline void RegisterConfigUtils(pybind11::module &main_module) {
       "Raised if parsing a configuration string/file failed.";
   m.attr("ValueError").attr("__doc__") =
       "Raised if invalid input values have been provided.";
-
-  // // // TODO remove
-  // m.def("dev", [m]() {
-  //   // auto pydatetime = pybind11::module::import("datetime");
-  //   // pybind11::object pydate = pydatetime.attr("date")(2023, 3, 1);
-
-  //   // pybind11::object pytime = pydatetime.attr("time")(23, 49, 10, 123456);
-
-  //   // return pybind11::make_tuple(pydate, pytime);
-  //   // // import pyzeugkiste
-  //   // // pyzeugkiste._core._cfg.dev()
-  //   return pybind11::make_tuple(std::make_optional(42), std::nullopt);
-  // });
 }
 }  // namespace werkzeugkiste::bindings
 
