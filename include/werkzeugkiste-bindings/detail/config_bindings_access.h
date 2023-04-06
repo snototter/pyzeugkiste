@@ -362,12 +362,14 @@ inline void RegisterSerialization(pybind11::class_<Config> &wrapper) {
       &Config::ToLibconfigString,
       "Returns a `Libconfig "
       "<http://hyperrealm.github.io/libconfig/>`__-formatted "
-      "representation of this configuration.");
+      "representation of this configuration.\n\nNote that date/time "
+      "parameters will be replaced by their string representation.");
 
   wrapper.def("to_yaml",
       &Config::ToYAMLString,
       "Returns a `YAML <https://yaml.org/>`__-formatted representation "
-      "of this configuration.");
+      "of this configuration.\n\nNote that date/time parameters will be "
+      "replaced by their string representation.");
 
   wrapper.def("to_dict",
       &Config::ToDict,
@@ -666,8 +668,8 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
           a boolean parameter.
 
       Returns:
-        The parameter ``value`` if the ``key`` does not exist. Otherwise it returns
-        the corresponding parameter value.
+        The parameter ``value`` if the ``key`` does not exist. Otherwise, the
+        actual parameter value will be returned.
       )doc";
   wrapper.def("bool_or",
       &Config::GetBoolOr,
@@ -704,8 +706,8 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
           be cast to (*i.e.* exactly represented by) an :class:`int`.
 
       Returns:
-        The ``value`` object if the ``key`` does not exist. Otherwise it returns
-        the corresponding parameter value.
+        The ``value`` object if the ``key`` does not exist. Otherwise, the
+        actual parameter value will be returned.
       )doc";
   wrapper.def("int_or",
       &Config::GetIntOr,
@@ -743,8 +745,8 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
           be cast to (*i.e.* exactly represented by) a :class:`float`.
 
       Returns:
-        The ``value`` object if the ``key`` does not exist. Otherwise it returns
-        the corresponding parameter value.
+        The ``value`` object if the ``key`` does not exist. Otherwise, the
+        actual parameter value will be returned.
       )doc";
   wrapper.def("float_or",
       &Config::GetFloatOr,
@@ -781,8 +783,8 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
           a :class:`str`.
 
       Returns:
-        The ``value`` object if the ``key`` does not exist. Otherwise it returns
-        the corresponding parameter value.
+        The ``value`` object if the ``key`` does not exist. Otherwise, the
+        actual parameter value will be returned.
       )doc";
   wrapper.def("str_or",
       &Config::GetStrOr,
@@ -820,8 +822,8 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
           a :class:`datetime.date`.
 
       Returns:
-        The ``value`` object if the ``key`` does not exist. Otherwise it returns
-        the corresponding parameter value.
+        The ``value`` object if the ``key`` does not exist. Otherwise, the
+        actual parameter value will be returned.
       )doc";
   wrapper.def("date_or",
       &Config::GetDateOr,
@@ -859,8 +861,8 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
           a :class:`datetime.time`.
 
       Returns:
-        The ``value`` object if the ``key`` does not exist. Otherwise it returns
-        the corresponding parameter value.
+        The ``value`` object if the ``key`` does not exist. Otherwise, the
+        actual parameter value will be returned.
       )doc";
   wrapper.def("time_or",
       &Config::GetTimeOr,
@@ -900,8 +902,8 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
           a :class:`datetime.datetime`.
 
       Returns:
-        The ``value`` object if the ``key`` does not exist. Otherwise it returns
-        the corresponding parameter value.
+        The ``value`` object if the ``key`` does not exist. Otherwise, the
+        actual parameter value will be returned.
       )doc";
   wrapper.def("datetime_or",
       &Config::GetDateTimeOr,
@@ -976,7 +978,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
           fully-qualified parameter name of a list parameter. Otherwise,
           ``self`` must be a view of an existing list parameter.
 
-       .. code-block:: python
+      .. code-block:: python
          :caption: Retrieve a deeply copied dict
 
          from pyzeugkiste import config as pyc
