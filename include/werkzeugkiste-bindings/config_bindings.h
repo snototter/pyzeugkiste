@@ -19,7 +19,7 @@
 namespace werkzeugkiste::bindings::detail {
 class Config;
 
-void RegisterConfigTypes(pybind11::module &m);
+void RegisterEnums(pybind11::module &m);
 void RegisterLoading(pybind11::module &m);
 void RegisterBasicOperators(pybind11::class_<Config> &wrapper);
 void RegisterSerialization(pybind11::class_<Config> &wrapper);
@@ -58,7 +58,7 @@ inline void RegisterConfigUtils(pybind11::module &main_module) {
     `libconfig <http://hyperrealm.github.io/libconfig/>`__.
     )doc";
 
-  detail::RegisterConfigTypes(m);
+  detail::RegisterEnums(m);
 
   std::string doc_string = R"doc(
     Encapsulates parameters.

@@ -18,7 +18,7 @@
 
 namespace werkzeugkiste::bindings::detail {
 
-inline void RegisterConfigTypes(pybind11::module &m) {
+inline void RegisterEnums(pybind11::module &m) {
   //---------------------------------------------------------------------------
   // ConfigType enumeration
   pybind11::enum_<werkzeugkiste::config::ConfigType>(
@@ -53,6 +53,19 @@ inline void RegisterConfigTypes(pybind11::module &m) {
           werkzeugkiste::config::ConfigType::Group,
           "A group (collection of named key/value pairs), convertible to "
           ":class:`dict`.");
+
+  //---------------------------------------------------------------------------
+  // JSON NullValuePolicy enumeration
+  pybind11::enum_<werkzeugkiste::config::NullValuePolicy>(m,
+      "NullValuePolicy",
+      "How to handle the non-representable ``null`` / ``None`` values.")
+      .value("Skip",
+          werkzeugkiste::config::NullValuePolicy::Skip,
+          "Null values will be skipped, *i.e.* not loaded into the "
+          "configuration.")
+      .value("NullString",
+          werkzeugkiste::config::NullValuePolicy::NullString,
+          "Null values will be **replaced** by the string ``'null'``.");
 }
 
 inline void RegisterLoading(pybind11::module &m) {
@@ -111,12 +124,13 @@ inline void RegisterLoading(pybind11::module &m) {
       doc_string.c_str(),
       pybind11::arg("filename"));
 
-  // TODO NullValuePolicy
   doc_string = R"doc(
       Loads the configuration from a `JSON <https://www.json.org/>`__ string.
 
       Args:
         json_str: Configuration as :class:`str`.
+        none_policy: A :class:`~pyzeugkiste.config.NullValuePolicy` enum which
+          specifies how ``None`` or ``null`` values should be handled.
 
       Raises:
         :class:`~pyzeugkiste.config.ParseError`: If a parsing error occured.
@@ -124,9 +138,10 @@ inline void RegisterLoading(pybind11::module &m) {
   m.def("load_json_str",
       &Config::LoadJSONString,
       doc_string.c_str(),
-      pybind11::arg("json_str"));
+      pybind11::arg("json_str"),
+      pybind11::arg("none_policy") =
+          werkzeugkiste::config::NullValuePolicy::Skip);
 
-  // TODO NullValuePolicy
   doc_string = R"doc(
       Loads the configuration from a `JSON <https://www.json.org/>`__ file.
 
@@ -134,6 +149,8 @@ inline void RegisterLoading(pybind11::module &m) {
         filename: Path to the configuration file. Can either be a :class:`str` or
           any object that can be represented as a :class:`str`. For example, a
           :class:`pathlib.Path` is also a valid input parameter.
+        none_policy: A :class:`~pyzeugkiste.config.NullValuePolicy` enum which
+          specifies how ``None`` or ``null`` values should be handled.
 
       Raises:
         :class:`~pyzeugkiste.config.ParseError`: If a parsing error occured,
@@ -142,7 +159,9 @@ inline void RegisterLoading(pybind11::module &m) {
   m.def("load_json_file",
       &Config::LoadJSONFile,
       doc_string.c_str(),
-      pybind11::arg("filename"));
+      pybind11::arg("filename"),
+      pybind11::arg("none_policy") =
+          werkzeugkiste::config::NullValuePolicy::Skip);
 
   doc_string = R"doc(
       Loads the configuration from a `Libconfig <http://hyperrealm.github.io/libconfig/>`__ string.
@@ -190,6 +209,15 @@ inline void RegisterBasicOperators(pybind11::class_<Config> &wrapper) {
   std::string doc_string = R"doc(
       Checks for equality.
 
+      Args:
+        other: Either another :class:`~pyzeugkiste.config.Config` instance or
+          a :class:`dict`. The latter will be implicitly converted to
+          :class:`~pyzeugkiste.config.Config` before comparison.
+
+      Raises:
+        :class:`~pyzeugkiste.config.TypeError`: If ``other`` is neither a
+          :class:`~pyzeugkiste.config.Config` instance nor a :class:`dict`.
+
       Returns:
         ``True`` if both configs contain the exact same configuration,
         *i.e.* keys, corresponding data types and values.
@@ -231,20 +259,47 @@ inline void RegisterBasicOperators(pybind11::class_<Config> &wrapper) {
          assert cfg1['values']['numeric'] != cfg2
       )doc";
   wrapper.def(
-      "__eq__", &Config::Equals, doc_string.c_str(), pybind11::arg("other"));
+      "__eq__",
+      [](const Config &self, pybind11::handle other) -> bool {
+        return self.Equals(other);
+      },
+      doc_string.c_str(),
+      pybind11::arg("other"));
 
   wrapper.def(
       "__ne__",
-      [](const Config &a, const Config &b) -> bool { return !a.Equals(b); },
+      [](const Config &self, pybind11::handle other) -> bool {
+        return !self.Equals(other);
+      },
       "Checks for inequality, see :meth:`__eq__` for details.",
       pybind11::arg("other"));
 
-  wrapper.def("copy", &Config::Copy, "Returns a deep copy.");
+  wrapper.def("copy", &Config::Copy, "Returns a deeply copied configuration.");
 
   wrapper.def("__contains__",
       &Config::Contains,
       "Checks if the given key/parameter name exists.",
       pybind11::arg("key"));
+
+  doc_string = R"doc(
+      Returns a read-only iterator for this group or list of parameters.
+
+      If the :class:`~pyzeugkiste.config.Config` instance is a group of
+      parameters, ``__iter___`` iterates over the parameter names.
+      If it is a view of a parameter list, ``__iter__`` iterates over
+      the corresponding values. Note that the values are returned as
+      copies and nested lists & groups will be converted to plain
+      python :class:`list` and :class:`dict`, respectively.
+      )doc";
+  wrapper.def(
+      "__iter__",
+      [](const Config &self) {
+        return pybind11::make_iterator(self.cbegin(), self.cend());
+      },
+      "Iterate over parameter names (for groups) or items (for views on "
+      "lists).",
+      // The Config must be kept alive while iterator exists:
+      pybind11::keep_alive<0, 1>());
 
   wrapper.def("parameter_len",
       &Config::ParameterLength,
@@ -260,6 +315,7 @@ inline void RegisterBasicOperators(pybind11::class_<Config> &wrapper) {
       &Config::Empty,
       "Checks if this configuration contains any parameters.");
 
+  // TODO raises
   doc_string = R"doc(
       Returns the parameter's :class:`~pyzeugkiste.config.ConfigType`.
 
@@ -275,6 +331,7 @@ inline void RegisterBasicOperators(pybind11::class_<Config> &wrapper) {
       doc_string.c_str(),
       pybind11::arg("key") = std::string{});
 
+  // TODO raises
   doc_string = R"doc(
       Returns the parameter names/keys of the direct child nodes (first-level
       parameters) of this configuration.
@@ -311,6 +368,38 @@ inline void RegisterBasicOperators(pybind11::class_<Config> &wrapper) {
 
       )doc";
   wrapper.def("keys", &Config::Keys, doc_string.c_str());
+
+  // TODO raises typeerror
+  doc_string = R"doc(
+      Returns (copies of) the parameter values.
+
+      Note that the returned :class:`list` of parameter values is a copy,
+      **not a dynamic view**. If the configuration changes, any previously
+      returned list of parameter values will not be updated automatically.
+
+      Changing a value **will not change** the corresponding parameter of
+      the :class:`Config` object.
+
+      Aggregate parameters (lists and groups) will be converted to their
+      corresponding python type, *i.e.* :class:`list` and :class:`dict`.
+      )doc";
+  wrapper.def("values", &Config::Values, doc_string.c_str());
+
+  // TODO raises typeerror
+  doc_string = R"doc(
+      Returns a copy of the parameter group's items, *i.e.* (key, value) pairs.
+
+      Note that the returned :class:`list` of (key, value) pairs values is
+      **not a dynamic view**, but a copy. If the configuration changes, any
+      previously returned list of items will not be updated automatically.
+
+      Changing a value **will not change** the corresponding parameter of
+      the :class:`Config` object.
+
+      Aggregate parameters (lists and groups) will be converted to their
+      corresponding python type, *i.e.* :class:`list` and :class:`dict`.
+      )doc";
+  wrapper.def("items", &Config::Items, doc_string.c_str());
 
   doc_string = R"doc(
       Removes all parameters of this configuration.
@@ -471,13 +560,13 @@ inline void RegisterGenericAccess(pybind11::class_<Config> &wrapper) {
       )doc";
   wrapper.def(
       "__getitem__",
-      [wrapper](Config &self, pybind11::handle key) -> pybind11::object {
+      [](Config &self, pybind11::handle key) -> pybind11::object {
         if (pybind11::isinstance<pybind11::int_>(key)) {
-          return self.GetIndex(key.cast<int>(), wrapper);
+          return self.GetScalarOrView(key.cast<int>());
         }
 
         if (pybind11::isinstance<pybind11::str>(key)) {
-          return self.GetKey(key.cast<std::string>(), wrapper);
+          return self.GetScalarOrView(key.cast<std::string>());
         }
 
         const std::string py_typestr =
@@ -1073,6 +1162,9 @@ inline void RegisterExtendedUtils(pybind11::class_<Config> &wrapper) {
       pattern which uses the wildcard ``'*'``.
       For example, to adjust **all** parameters which names end with
       the suffix ``_path`` as above, we could simply pass ``['*_path']``.
+
+      If a non-string parameter would match a given name/pattern, it will
+      be ignored.
 
       Args:
         base_path: Base path to be prepended to relative file paths. Can either

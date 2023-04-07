@@ -96,6 +96,61 @@ struct DataHolder {
 class Config {
  public:
   //---------------------------------------------------------------------------
+  // Iterator
+  struct Iterator {
+    Iterator(Config const *cfg,
+        werkzeugkiste::config::ConfigType type,
+        std::size_t idx)
+        : cfg_{cfg},
+          is_group_{type == werkzeugkiste::config::ConfigType::Group},
+          idx_{idx} {
+      if (is_group_) {
+        keys_ = cfg->Keys();
+      }
+    }
+
+    pybind11::object operator*() {
+      if (is_group_) {
+        return pybind11::str(keys_[idx_]);
+      }
+      return cfg_->GetValue(idx_);
+    }
+
+    // Prefix increment
+    Iterator &operator++() {
+      ++idx_;
+      return *this;
+    }
+
+    // Postfix increment
+    Iterator operator++(int) {
+      Iterator tmp = *this;
+      ++(*this);
+      return tmp;
+    }
+
+    friend bool operator==(const Iterator &a, const Iterator &b) {
+      if (a.idx_ != b.idx_) {
+        return false;
+      }
+      return a.cfg_->Equals(*b.cfg_);
+    }
+
+    friend bool operator!=(const Iterator &a, const Iterator &b) {
+      return !(a == b);
+    }
+
+   private:
+    Config const *cfg_{nullptr};
+    bool is_group_{false};
+    std::size_t idx_{0};
+    std::vector<std::string> keys_{};
+  };
+
+  Iterator cbegin() const { return Iterator(this, Type(), 0); }
+  Iterator cend() const { return Iterator(this, Type(), Length()); }
+
+  //---------------------------------------------------------------------------
   // Construction / Loading
 
   static Config LoadFile(pybind11::handle filename) {
@@ -120,20 +175,21 @@ class Config {
     return cfg;
   }
 
-  static Config LoadJSONFile(pybind11::handle filename) {
-    // TODO support NullValuePolicy
+  static Config LoadJSONFile(pybind11::handle filename,
+      werkzeugkiste::config::NullValuePolicy none_policy) {
     Config cfg{};
     cfg.data_ = std::make_shared<DataHolder>();
-    cfg.data_->data =
-        werkzeugkiste::config::LoadJSONFile(PyObjToString(filename));
+    cfg.data_->data = werkzeugkiste::config::LoadJSONFile(
+        PyObjToString(filename), none_policy);
     return cfg;
   }
 
-  static Config LoadJSONString(std::string_view json_str) {
-    // TODO support NullValuePolicy
+  static Config LoadJSONString(std::string_view json_str,
+      werkzeugkiste::config::NullValuePolicy none_policy) {
     Config cfg{};
     cfg.data_ = std::make_shared<DataHolder>();
-    cfg.data_->data = werkzeugkiste::config::LoadJSONString(json_str);
+    cfg.data_->data =
+        werkzeugkiste::config::LoadJSONString(json_str, none_policy);
     return cfg;
   }
 
@@ -199,9 +255,32 @@ class Config {
     return CopyViewedGroup().Equals(other.CopyViewedGroup());
   }
 
+  bool Equals(pybind11::handle other) const {
+    if (pybind11::isinstance<Config>(other)) {
+      return Equals(other.cast<Config>());
+    }
+
+    if (pybind11::isinstance<pybind11::dict>(other)) {
+      return CopyViewedGroup().Equals(
+          PyDictToConfiguration(other.cast<pybind11::dict>()));
+    }
+
+    std::string msg{"Cannot compare a `Config` instance against a `"};
+    msg +=
+        pybind11::cast<std::string>(other.attr("__class__").attr("__name__"));
+    msg += "`!";
+    throw werkzeugkiste::config::TypeError{msg};
+  }
+
   bool Contains(std::string_view key) const {
-    // TODO could add a check to prevent invocation on a List "view"
+    // If implemented for a sequence type (i.e. list), __contains__ should
+    // check for equality of the values:
     // https://docs.python.org/3/reference/datamodel.html?emulating-container-types#emulating-container-types
+    // Thus, we only support __contains__ for groups:
+    if (Type() == werkzeugkiste::config::ConfigType::List) {
+      throw werkzeugkiste::config::TypeError{
+          "`__contains__` is not supported for a Config view of a list!"};
+    }
     return ImmutableConfig().Contains(Key(key));
   }
 
@@ -245,15 +324,45 @@ class Config {
   // Getter
 
   /// @brief Enables `__getitem__[str]` for parameters of type `group`.
-  pybind11::object GetKey(std::string_view key,
-      const pybind11::class_<Config> &cls_handle) {
-    return Get(Key(key), cls_handle);
+  pybind11::object GetScalarOrView(std::string_view key) {
+    return GetBuiltinOrView(Key(key));
   }
 
   /// @brief Enables `__getitem__[int]` for parameters of type `list`.
-  pybind11::object GetIndex(int64_t index,
-      const pybind11::class_<Config> &cls_handle) {
-    return Get(Key(index), cls_handle);
+  pybind11::object GetScalarOrView(int index) {
+    return GetBuiltinOrView(Key(index));
+  }
+
+  /// @brief Returns a copy of the parameter as plain python type, *i.e.*
+  ///   parameter lists/groups will be converted to lists and dictionaries.
+  pybind11::object GetValue(int index) const {
+    return GetBuiltinValue(Key(index));
+  }
+
+  /// @brief Returns a copy of the parameter as plain python type, *i.e.*
+  ///   parameter lists/groups will be converted to lists and dictionaries.
+  pybind11::object GetValue(std::string_view key) const {
+    return GetBuiltinValue(Key(key));
+  }
+
+  pybind11::list Values() const {
+    // Type check (group vs list) is implicitly handled by Keys(),
+    // which is only supported for groups.
+    pybind11::list lst;
+    for (const auto &key : Keys()) {
+      lst.append(GetValue(key));
+    }
+    return lst;
+  }
+
+  pybind11::list Items() const {
+    // Type check (group vs list) is implicitly handled by Keys(),
+    // which is only supported for groups.
+    pybind11::list lst;
+    for (const auto &key : Keys()) {
+      lst.append(pybind11::make_tuple(key, GetValue(key)));
+    }
+    return lst;
   }
 
   pybind11::object GetBool(std::string_view key) const {
@@ -407,8 +516,6 @@ class Config {
   //---------------------------------------------------------------------------
   // Special functions
 
-  // TODO make group/list iterable
-
   std::vector<std::string> ListParameterNames(bool include_array_entries,
       bool recursive,
       std::string_view key) const {
@@ -447,67 +554,23 @@ class Config {
   std::shared_ptr<DataHolder> data_{};
   std::string fqn_prefix_{};
 
-  werkzeugkiste::config::Configuration ListToGroup() const {
-    using namespace std::string_view_literals;
-    werkzeugkiste::config::Configuration copy{};
+  werkzeugkiste::config::Configuration CopyGroup(std::string_view fqn) const {
     const werkzeugkiste::config::Configuration &cfg = ImmutableConfig();
-    std::string_view key_out{"list"sv};
-    copy.CreateList(key_out);
-    for (std::size_t idx = 0; idx < Length(); ++idx) {
-      const std::string fqn = Key(idx);
-      switch (cfg.Type(fqn)) {
-        case werkzeugkiste::config::ConfigType::Boolean:
-          copy.Append(key_out, cfg.GetBoolean(fqn));
-          break;
-
-        case werkzeugkiste::config::ConfigType::Integer:
-          copy.Append(key_out, cfg.GetInteger64(fqn));
-          break;
-
-        case werkzeugkiste::config::ConfigType::FloatingPoint:
-          copy.Append(key_out, cfg.GetDouble(fqn));
-          break;
-
-        case werkzeugkiste::config::ConfigType::String:
-          copy.Append(key_out, cfg.GetString(fqn));
-          break;
-
-        case werkzeugkiste::config::ConfigType::List:
-          // copy.Append(key_out, cfg.GetBoolean(fqn)); FIXME
-          break;
-
-        case werkzeugkiste::config::ConfigType::Group:
-          copy.Append(key_out, cfg.GetGroup(fqn));
-          break;
-
-        case werkzeugkiste::config::ConfigType::Date:
-          copy.Append(key_out, cfg.GetDate(fqn));
-          break;
-
-        case werkzeugkiste::config::ConfigType::Time:
-          copy.Append(key_out, cfg.GetTime(fqn));
-          break;
-
-        case werkzeugkiste::config::ConfigType::DateTime:
-          copy.Append(key_out, cfg.GetDateTime(fqn));
-          break;
-      }
-    }
-    return copy;
-  }
-
-  werkzeugkiste::config::Configuration CopyViewedGroup() const {
-    if (fqn_prefix_.empty()) {
-      return ImmutableConfig();
-    }
-    if (Type() == werkzeugkiste::config::ConfigType::List) {
-      using namespace std::string_view_literals;
-      werkzeugkiste::config::Configuration cfg{};
-      cfg.CreateList("list"sv);
-      CopyList(ImmutableConfig(), fqn_prefix_, cfg, "list"sv);
+    if (fqn.empty()) {
       return cfg;
     }
-    return ImmutableConfig().GetGroup(fqn_prefix_);
+    if (cfg.Type(fqn) == werkzeugkiste::config::ConfigType::List) {
+      using namespace std::string_view_literals;
+      werkzeugkiste::config::Configuration copy{};
+      copy.CreateList("list"sv);
+      CopyList(cfg, fqn, copy, "list"sv);
+      return copy;
+    }
+    return cfg.GetGroup(fqn);
+  }
+
+  inline werkzeugkiste::config::Configuration CopyViewedGroup() const {
+    return CopyGroup(fqn_prefix_);
   }
 
   inline werkzeugkiste::config::Configuration &MutableConfig() {
@@ -645,20 +708,27 @@ class Config {
     throw std::logic_error{msg};
   }
 
-  pybind11::object Get(std::string_view fqn,
-      const pybind11::class_<Config> &cls_handle) {
+  pybind11::object GetBuiltinOrView(std::string_view fqn) {
     const werkzeugkiste::config::Configuration &cfg = ImmutableConfig();
     const werkzeugkiste::config::ConfigType type = cfg.Type(fqn);
 
     if ((type == werkzeugkiste::config::ConfigType::List) ||
         (type == werkzeugkiste::config::ConfigType::Group)) {
-      pybind11::object obj = cls_handle();
-      auto ptr = obj.cast<Config *>();
+      pybind11::object config_cls =
+          pybind11::module::import("pyzeugkiste._core._cfg").attr("Config");
+      pybind11::object obj = config_cls();
+      auto *ptr = obj.cast<Config *>();
       ptr->data_ = data_;
       ptr->fqn_prefix_ = fqn;
       return obj;
     }
 
+    return ValueOr(type, fqn, false);
+  }
+
+  pybind11::object GetBuiltinValue(std::string_view fqn) const {
+    const werkzeugkiste::config::Configuration &cfg = ImmutableConfig();
+    const werkzeugkiste::config::ConfigType type = cfg.Type(fqn);
     return ValueOr(type, fqn, false);
   }
 
