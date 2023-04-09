@@ -846,7 +846,7 @@ class Config {
       cfg.SetGroup(fqn, PyDictToConfiguration(value.cast<pybind11::dict>()));
     } else if (pybind11::isinstance<Config>(value)) {
       cfg.SetGroup(fqn, value.cast<Config>().ImmutableConfig());
-    } else if (pybind11::isinstance<py::array_t>(value)) {
+    } else if (pybind11::isinstance<pybind11::array>(value)) {
       WZKLOG_CRITICAL("TODO need to convert array/numpy to parameter");
     } else {
       if (py_typestr.compare("date") == 0) {
