@@ -948,6 +948,10 @@ def test_numpy():
     assert mat.dtype == np.int64
     assert (mat.shape[0] == 3) and (mat.shape[1] == 3)
 
+    with pytest.raises(pyc.TypeError):
+        # int8 is not yet supported by werkzeugkiste (and will likely never be)
+        cfg['camera-matrix'].numpy(dtype=np.int8)
+
     mat = cfg['camera-matrix'].numpy(dtype=np.int32)
     mat = cfg['camera-matrix'].numpy(dtype=np.int16)
     mat = cfg['camera-matrix'].numpy(dtype=np.int8)
