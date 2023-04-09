@@ -3,6 +3,7 @@
 
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 #include <werkzeugkiste/config/casts.h>
 #include <werkzeugkiste/config/configuration.h>
@@ -1108,6 +1109,17 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       doc_string.c_str(),
       pybind11::arg("key"),
       pybind11::arg("value"));
+  
+  // TODO list supported dtypes
+  doc_string = R"doc(
+      )doc";
+  wrapper.def("numpy",
+      &Config::GetMatrix,
+      doc_string.c_str(),
+      pybind11::arg("key") = std::string{},
+      pybind11::arg("dtype") = pybind11::dtype("float64"));
+
+      //TODO mat or
 }
 
 inline void RegisterExtendedUtils(pybind11::class_<Config> &wrapper) {

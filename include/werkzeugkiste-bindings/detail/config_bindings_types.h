@@ -2,6 +2,8 @@
 #define WERKZEUGKISTE_BINDINGS_CONFIG_DETAIL_TYPES_H
 
 #include <pybind11/chrono.h>
+#include <pybind11/numpy.h>
+#include <pybind11/eigen.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -85,6 +87,27 @@ inline void CopyList(const werkzeugkiste::config::Configuration &src,
         break;
     }
   }
+}
+
+/// @brief Returns a copy of the matrix as pybind11::array.
+///
+/// Yes, this causes an unnecessary copy (the matrix has already been allocated
+/// by werkzeugkiste to convert a nested list into a matrix). But I didn't find
+/// a quick solution on how to return Eigen matrices with different types in
+/// a more elegant way.
+///
+/// TODO dig deeper into the pybind11 numpy & eigen docs / forums
+/// Discussion on copy/refcounting: https://github.com/pybind/pybind11/issues/323
+///
+/// @tparam Tp 
+/// @param mat 
+/// @return 
+template <typename Tp>
+pybind11::array_t<Tp> MatToArray(const werkzeugkiste::config::Matrix<Tp> &mat){
+  std::vector<ssize_t> shape{mat.rows(), mat.cols()};
+  return pybind11::array_t<Tp>(shape,
+      {shape[0] * shape[1] * sizeof(Tp), shape[1] * sizeof(Tp)}, // strides // 3d would be additionally sizeof(dbl) along the channel dimension
+      mat.data());  // data pointer
 }
 
 /// @brief Holds the actual configuration data (to enable shared memory usage
@@ -490,6 +513,59 @@ class Config {
         /*return_def=*/true,
         def);
   }
+  
+  // TODO __setitem__ py::isinstance<py::array_t<std::int32_t>>(buf)
+  // https://github.com/pybind/pybind11/issues/563
+
+  pybind11::array_t<double> TODO(std::string_view key) const {
+    // https://github.com/pybind/pybind11/issues/1377
+    werkzeugkiste::config::Matrix<double> mat = ImmutableConfig().GetMatrixDouble(Key(key));
+    std::vector<ssize_t> shape{mat.rows(), mat.cols()};
+     return pybind11::array_t<double>(shape,
+                          {shape[0] * shape[1] * sizeof(double), shape[1] * sizeof(double)}, // strides // 3d would be additionally sizeof(dbl) along the channel dimension
+                          mat.data());  // data pointer
+  }
+
+  pybind11::array GetMatrix(std::string_view key, const pybind11::type &dt) const {
+    // Cannot use builtins like pybind11::type::of<double> 
+    // https://github.com/pybind/pybind11/issues/2486
+
+    const std::string tp_name = pybind11::cast<std::string>(dt.attr("__name__"));
+    const std::string fqn = Key(key);
+
+    WZKLOG_CRITICAL("TODO WIP - requested matrix of type: __module__ {:s}, __name__ {:s}", pybind11::cast<std::string>(dt.attr("__module__")), tp_name);
+    if (tp_name.compare("float64") == 0) {
+      return MatToArray(ImmutableConfig().GetMatrixDouble(fqn));
+    }
+    
+    if (tp_name.compare("int64") == 0) {
+      return MatToArray(ImmutableConfig().GetMatrixInt64(Key(key)));
+    }
+
+    if (tp_name.compare("int32") == 0) {
+      return MatToArray(ImmutableConfig().GetMatrixInt64(Key(key)));
+    }
+
+    if (tp_name.compare("uint8") == 0) {
+      return MatToArray(ImmutableConfig().GetMatrixUInt8(Key(key)));
+    }
+
+    std::string msg{"Converting the configuration parameter `"};
+    msg += fqn;
+    msg += "` to a NumPy array of dtype=`" + tp_name
+        + "` is not yet supported! Please file a feature request at: "
+          "https://github.com/snototter/pyzeugkiste/issues";
+    throw werkzeugkiste::config::TypeError{msg};
+  }
+
+  // pybind11::object GetMatrixOr(std::string_view key,
+  //     const pybind11::dtype &dt,
+  //     const pybind11::object &def) const {
+  //   if (!Contains(key)) {
+  //     return def;
+  //   }
+  //   return GetMatrix(key, dt);
+  // }
 
   //---------------------------------------------------------------------------
   // Setter

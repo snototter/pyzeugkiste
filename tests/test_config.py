@@ -1,5 +1,5 @@
 import pytest
-import math
+import numpy as np
 import datetime
 from pyzeugkiste import config as pyc
 
@@ -922,3 +922,39 @@ def test_container_interface():
 
     with pytest.raises(pyc.TypeError):
         cfg['group.lst'].items()
+
+
+def test_numpy():
+    cfg = pyc.load_toml_str("""
+        camera-matrix = [
+            [800,   0, 400],
+            [  0, 750, 300],
+            [  0,   0,   1]
+        ]
+        """)
+    
+    mat = cfg['camera-matrix'].numpy(dtype=np.float64)
+    assert mat.ndim == 2
+    assert mat.dtype == np.float64
+    assert (mat.shape[0] == 3) and (mat.shape[1] == 3)
+
+    mat = cfg['camera-matrix'].numpy(dtype=np.int64)
+    assert mat.ndim == 2
+    assert mat.dtype == np.int64
+    assert (mat.shape[0] == 3) and (mat.shape[1] == 3)
+
+    mat = cfg['camera-matrix'].numpy(dtype=np.int32)
+    mat = cfg['camera-matrix'].numpy(dtype=np.int16)
+    mat = cfg['camera-matrix'].numpy(dtype=np.int8)
+    mat = cfg['camera-matrix'].numpy(dtype=np.uint8)
+    mat = cfg['camera-matrix'].numpy(dtype=np.uint16)
+    mat = cfg['camera-matrix'].numpy(dtype=np.uint32)
+    # assert mat.dtype == np.int32
+    # assert (mat.shape[0] == 3) and (mat.shape[1] == 3)
+
+    assert False
+    assert mat.ndim == 2
+    assert mat.dtype == np.int32
+    assert (mat.shape[0] == 3) and (mat.shape[1] == 3)
+    # TODO row-major
+    
