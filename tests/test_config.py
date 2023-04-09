@@ -938,6 +938,11 @@ def test_numpy():
     assert mat.dtype == np.float64
     assert (mat.shape[0] == 3) and (mat.shape[1] == 3)
 
+
+    m2x3 = mat[:2, :]
+    assert m2x3.shape[0] == 2
+    cfg['set-mat'] = m2x3
+
     mat = cfg['camera-matrix'].numpy(dtype=np.int64)
     assert mat.ndim == 2
     assert mat.dtype == np.int64

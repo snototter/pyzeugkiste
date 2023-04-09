@@ -517,15 +517,6 @@ class Config {
   // TODO __setitem__ py::isinstance<py::array_t<std::int32_t>>(buf)
   // https://github.com/pybind/pybind11/issues/563
 
-  pybind11::array_t<double> TODO(std::string_view key) const {
-    // https://github.com/pybind/pybind11/issues/1377
-    werkzeugkiste::config::Matrix<double> mat = ImmutableConfig().GetMatrixDouble(Key(key));
-    std::vector<ssize_t> shape{mat.rows(), mat.cols()};
-     return pybind11::array_t<double>(shape,
-                          {shape[0] * shape[1] * sizeof(double), shape[1] * sizeof(double)}, // strides // 3d would be additionally sizeof(dbl) along the channel dimension
-                          mat.data());  // data pointer
-  }
-
   pybind11::array GetMatrix(std::string_view key, const pybind11::type &dt) const {
     // Cannot use builtins like pybind11::type::of<double> 
     // https://github.com/pybind/pybind11/issues/2486
@@ -855,6 +846,8 @@ class Config {
       cfg.SetGroup(fqn, PyDictToConfiguration(value.cast<pybind11::dict>()));
     } else if (pybind11::isinstance<Config>(value)) {
       cfg.SetGroup(fqn, value.cast<Config>().ImmutableConfig());
+    } else if (py::isinstance<py::array_t>(value)) {
+      WZKLOG_CRITICAL("TODO need to convert array/numpy to parameter");
     } else {
       if (py_typestr.compare("date") == 0) {
         cfg.SetDate(fqn, PyObjToDate(value));
