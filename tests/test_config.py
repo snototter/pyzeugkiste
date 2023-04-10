@@ -996,6 +996,9 @@ def test_get_numpy():
     assert np.array_equiv(mat_c, ret_c)
     ret_c = cfg['row-major'].numpy(dtype=mat_c.dtype) #TODO not yet supported :/
     ret_f = cfg['col-major'].numpy(dtype=mat_f.dtype)
+    # FIXME potential bug when serializing the list:
+    # assertion message prints an incorrect serialization (empty entries!):
+    #  list = [ [ 1, 2, 3 ], [], [ 4, 6, 7 ], [] ]
 
     ###########################################################################
     # Load matrices as single-precision float
