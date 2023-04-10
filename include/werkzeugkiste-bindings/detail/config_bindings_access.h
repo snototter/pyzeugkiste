@@ -1110,8 +1110,19 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       pybind11::arg("key"),
       pybind11::arg("value"));
   
-  // TODO list supported dtypes
   doc_string = R"doc(
+      Returns a list/nested list parameter as :class:`numpy.ndarray`.
+
+      Raises:
+        :class:`~pyzeugkiste.config.KeyError`: If the parameter does not exist.
+        :class:`~pyzeugkiste.config.TypeError`: If the parameter exists, but is
+          not a list.
+
+      Args:
+        key: Fully-qualified parameter name.
+        dtype: Type of the output :class:`numpy.ndarray`. The following types
+          are supported: :class:`numpy.float64`, `numpy.int64`, `numpy.int32`,
+          and `numpy.uint8`.
       )doc";
   wrapper.def("numpy",
       &Config::GetMatrix,
@@ -1119,7 +1130,27 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       pybind11::arg("key") = std::string{},
       pybind11::arg("dtype") = pybind11::dtype("float64"));
 
-      //TODO mat or
+   doc_string = R"doc(
+      Returns a :class:`numpy.ndarray` or the given value if the parameter does
+      not exist.
+
+      Raises:
+        :class:`~pyzeugkiste.config.TypeError`: If the parameter exists, but is
+          not a list.
+
+      Args:
+        key: Fully-qualified parameter name.
+        dtype: Type of the output :class:`numpy.ndarray`. The following types
+          are supported: :class:`numpy.float64`, `numpy.int64`, `numpy.int32`,
+          and `numpy.uint8`.
+        value: Any object to be returned if the given ``key`` does not exist. 
+      )doc";
+  wrapper.def("numpy_or",
+      &Config::GetMatrixOr,
+      doc_string.c_str(),
+      pybind11::arg("key"),
+      pybind11::arg("dtype"),
+      pybind11::arg("value"));
 }
 
 inline void RegisterExtendedUtils(pybind11::class_<Config> &wrapper) {

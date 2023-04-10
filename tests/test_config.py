@@ -924,46 +924,195 @@ def test_container_interface():
         cfg['group.lst'].items()
 
 
-def test_numpy():
+def test_get_numpy():
     cfg = pyc.load_toml_str("""
         camera-matrix = [
             [800,   0, 400],
             [  0, 750, 300],
             [  0,   0,   1]
         ]
+
+        lst-flt = [0.0, -3.5, 1e6]
+        
+        empty = []
+
+        mat-uint8 = [
+            [0, 127],
+            [10, 100],
+            [32, 64]
+        ]
         """)
     
+    ###########################################################################
+    # Intended use case: load a nested list as matrix of a desired dtype,
+    # e.g. double-precision floating point:
     mat = cfg['camera-matrix'].numpy(dtype=np.float64)
     assert mat.ndim == 2
     assert mat.dtype == np.float64
     assert (mat.shape[0] == 3) and (mat.shape[1] == 3)
+    assert mat.flags.c_contiguous
+    assert pytest.approx(800) == mat[0, 0]
+    assert pytest.approx(0) == mat[0, 1]
+    assert pytest.approx(400) == mat[0, 2]
+    assert pytest.approx(0) == mat[1, 0]
+    assert pytest.approx(750) == mat[1, 1]
+    assert pytest.approx(300) == mat[1, 2]
+    assert pytest.approx(0) == mat[2, 0]
+    assert pytest.approx(0) == mat[2, 1]
+    assert pytest.approx(1) == mat[2, 2]
 
-
+    # Alternatively, we can look it up via:
+    tmp = cfg.numpy(key='camera-matrix', dtype=np.float64)
+    assert np.allclose(tmp, mat)
+    
+    # Keep a copy for later validation checks
+    m3x3 = mat.copy()
     m2x3 = mat[:2, :]
     assert m2x3.shape[0] == 2
-    cfg['set-mat'] = m2x3
 
+    ###########################################################################
+    # Store matrix as configuration parameter:
+    assert m2x3.flags.c_contiguous
+    cfg['m2x3'] = m2x3
+    assert cfg.type('m2x3') == pyc.ConfigType.List
+    assert 2 == len(cfg['m2x3'])
+    assert cfg.type('m2x3[0]') == pyc.ConfigType.List
+    assert 3 == len(cfg['m2x3'][0])
+    assert 3 == len(cfg['m2x3'][1])
+
+    ###########################################################################
+    # Set matrices with different storage orders (default is row-major)
+    mat_c = np.array([[1,2,3], [4,6,7]], order='C')
+    mat_f = np.array([[1,2,3], [4,6,7]], order='F')
+    assert np.array_equiv(mat_c, mat_f)
+    assert mat_c.flags.c_contiguous
+    assert not mat_c.flags.f_contiguous
+    assert not mat_f.flags.c_contiguous
+    assert mat_f.flags.f_contiguous
+    cfg['row-major'] = mat_c
+    cfg['col-major'] = mat_f
+    
+    ret_c = cfg['row-major'].numpy(dtype=np.float64)
+    assert np.array_equiv(mat_c, ret_c)
+    ret_c = cfg['row-major'].numpy(dtype=mat_c.dtype) #TODO not yet supported :/
+    ret_f = cfg['col-major'].numpy(dtype=mat_f.dtype)
+
+    ###########################################################################
+    # Load matrices as single-precision float
+    mat = cfg['camera-matrix'].numpy(dtype=np.float32)
+    assert mat.dtype == np.float32
+    assert mat.flags.c_contiguous
+    assert np.array_equal(m3x3.astype(np.float32), mat)
+
+    mat = cfg['m2x3'].numpy(dtype=np.float32)
+    assert mat.dtype == np.float32
+    assert mat.flags.c_contiguous
+    assert np.array_equal(m2x3.astype(np.float32), mat)
+
+    ###########################################################################
+    # Load matrices as 64-bit integer
     mat = cfg['camera-matrix'].numpy(dtype=np.int64)
-    assert mat.ndim == 2
     assert mat.dtype == np.int64
-    assert (mat.shape[0] == 3) and (mat.shape[1] == 3)
+    assert mat.flags.c_contiguous
+    assert np.array_equal(m3x3.astype(np.int64), mat)
 
+    mat = cfg['m2x3'].numpy(dtype=np.int64)
+    assert mat.dtype == np.int64
+    assert mat.flags.c_contiguous
+    assert np.array_equal(m2x3.astype(np.int64), mat)
+
+    ###########################################################################
+    # Load matrices as 32-bit integer
+    mat = cfg['camera-matrix'].numpy(dtype=np.int32)
+    assert mat.dtype == np.int32
+    assert mat.flags.c_contiguous
+    assert np.array_equal(m3x3.astype(np.int32), mat)
+
+    mat = cfg['m2x3'].numpy(dtype=np.int32)
+    assert mat.dtype == np.int32
+    assert mat.flags.c_contiguous
+    assert np.array_equal(m2x3.astype(np.int32), mat)
+
+    ###########################################################################
+    # Load matrices as 8-bit unsigned integer
     with pytest.raises(pyc.TypeError):
-        # int8 is not yet supported by werkzeugkiste (and will likely never be)
+        # Values exceed uint8 range
+        mat = cfg['camera-matrix'].numpy(dtype=np.uint8)
+    
+    mat = cfg['mat-uint8'].numpy(dtype=np.uint8)
+    assert mat.dtype == np.uint8
+    assert mat.flags.c_contiguous
+    assert 3 == mat.shape[0]
+    assert 2 == mat.shape[1]
+    assert 0 == mat[0, 0]
+    assert 127 == mat[0, 1]
+    assert 10 == mat[1, 0]
+    assert 100 == mat[1, 1]
+    assert 32 == mat[2, 0]
+    assert 64 == mat[2, 1]
+
+    ###########################################################################
+    # Other types are not supported (and will not be added, unless there is
+    # a specific use case)
+    with pytest.raises(pyc.TypeError):
         cfg['camera-matrix'].numpy(dtype=np.int8)
 
-    mat = cfg['camera-matrix'].numpy(dtype=np.int32)
-    mat = cfg['camera-matrix'].numpy(dtype=np.int16)
-    mat = cfg['camera-matrix'].numpy(dtype=np.int8)
-    mat = cfg['camera-matrix'].numpy(dtype=np.uint8)
-    mat = cfg['camera-matrix'].numpy(dtype=np.uint16)
-    mat = cfg['camera-matrix'].numpy(dtype=np.uint32)
-    # assert mat.dtype == np.int32
-    # assert (mat.shape[0] == 3) and (mat.shape[1] == 3)
+    with pytest.raises(pyc.TypeError):
+        cfg['camera-matrix'].numpy(dtype=np.int16)
 
-    assert False
-    assert mat.ndim == 2
-    assert mat.dtype == np.int32
-    assert (mat.shape[0] == 3) and (mat.shape[1] == 3)
-    # TODO row-major
-    
+    with pytest.raises(pyc.TypeError):
+        cfg['camera-matrix'].numpy(dtype=np.uint16)
+
+
+    ###########################################################################
+    # Edge case empty matrix:
+    mat = cfg['empty'].numpy(dtype=np.uint8)
+    assert mat.dtype == np.uint8
+    assert mat.flags.c_contiguous
+    assert 0 == len(mat)
+
+    # TODO add GetMatrixFloat to wzk and pzk
+    # TODO doc how to extend it
+    # 1) wzk: Add GetMatrixT to werkzeugkiste::config::Configuration
+    # 2) wzk: Add test cases to compound test
+    # 3) pzk: Extend `Config::GetMatrix`
+    # 4) pzk: Add test cases to test_get_numpy()
+
+
+
+def test_set_from_numpy():
+    cfg = pyc.Config()
+
+    ## Empty numpy array
+    # Set
+    mat = np.array([], dtype=np.int64)
+    assert 0 == len(mat)
+    cfg['empty'] = mat
+    assert 0 == len(cfg['empty'])
+    # Get
+    ret = cfg['empty'].numpy(dtype=np.int64)
+    assert 0 == len(ret)
+
+    ## 2D matrix
+    # Set
+    mat = np.random.rand(5, 3)
+    cfg['rand'] = mat
+    # Get
+    ret = cfg['rand'].numpy(dtype=np.float64)
+    assert np.allclose(ret, mat)
+    # The values should be in [0, 1], thus not representable by an int:
+    with pytest.raises(pyc.TypeError):
+        cfg['rand'].numpy(dtype=np.int32)
+
+    ## 3D matrix is not supported
+    with pytest.raises(ValueError):
+        cfg['chan3'] = np.zeros((5, 4, 3), dtype=np.int32)
+
+    ## 1D matrix Nx1
+    # TODO
+
+    ## 1D matrix 1xN
+    # TODO
+
+    ## Vector (N,)
+    # TODO
