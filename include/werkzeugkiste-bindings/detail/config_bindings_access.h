@@ -328,7 +328,7 @@ inline void RegisterBasicOperators(pybind11::class_<Config> &wrapper) {
       Returns the parameter's :class:`~pyzeugkiste.config.ConfigType`.
 
       Args:
-        key: The fully-qualified parameter name. If an empty :class:`str` is
+        key: The fully qualified parameter name. If an empty :class:`str` is
           provided, the type of the current configuration (either
           :class:`~pyzeugkiste.config.ConfigType.Group` or
           :class:`~pyzeugkiste.config.ConfigType.List`) will be
@@ -659,7 +659,7 @@ inline void RegisterGenericAccess(pybind11::class_<Config> &wrapper) {
 
       Args:
         value: The object/parameter value to be appended.
-        key: The fully-qualified parameter name of the list. If an empty
+        key: The fully qualified parameter name of the list. If an empty
           :class:`str` is provided, this configuration object must be
           a view of a list parameter.
           If the key does not exist, it will be created.
@@ -741,7 +741,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetBoolean``.
 
       Args:
-        key: The fully-qualified parameter name.
+        key: The fully qualified parameter name.
 
       Raises:
         :class:`~pyzeugkiste.config.KeyError`: If ``key`` does not exist.
@@ -757,7 +757,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetBooleanOr``.
 
       Args:
-        key: The fully-qualified parameter name.
+        key: The fully qualified parameter name.
         value: Any object to be returned if the ``key`` does not exist.
 
       Raises:
@@ -777,10 +777,10 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
   doc_string = R"doc(
       Returns the :class:`int` parameter.
 
-      **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetInteger64``.
+      **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetInt64``.
 
       Args:
-        key: The fully-qualified parameter name.
+        key: The fully qualified parameter name.
 
       Raises:
         :class:`~pyzeugkiste.config.KeyError`: If ``key`` does not exist.
@@ -792,10 +792,10 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
   doc_string = R"doc(
       Returns an optional :class:`int` parameter.
 
-      **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetInteger64Or``.
+      **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetInt64Or``.
 
       Args:
-        key: The fully-qualified parameter name.
+        key: The fully qualified parameter name.
         value: Any object to be returned if the ``key`` does not exist.
 
       Raises:
@@ -818,7 +818,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetDouble``.
 
       Args:
-        key: The fully-qualified parameter name.
+        key: The fully qualified parameter name.
 
       Raises:
         :class:`~pyzeugkiste.config.KeyError`: If ``key`` does not exist.
@@ -834,7 +834,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetDoubleOr``.
 
       Args:
-        key: The fully-qualified parameter name.
+        key: The fully qualified parameter name.
         value: Any object to be returned if the ``key`` does not exist.
 
       Raises:
@@ -857,7 +857,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetString``.
 
       Args:
-        key: The fully-qualified parameter name.
+        key: The fully qualified parameter name.
 
       Raises:
         :class:`~pyzeugkiste.config.KeyError`: If ``key`` does not exist.
@@ -872,7 +872,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetStringOr``.
 
       Args:
-        key: The fully-qualified parameter name.
+        key: The fully qualified parameter name.
         value: Any object to be returned if the ``key`` does not exist.
 
       Raises:
@@ -895,7 +895,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetDate``.
 
       Args:
-        key: The fully-qualified parameter name.
+        key: The fully qualified parameter name.
 
       Raises:
         :class:`~pyzeugkiste.config.KeyError`: If ``key`` does not exist.
@@ -911,7 +911,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetDateOr``.
 
       Args:
-        key: The fully-qualified parameter name.
+        key: The fully qualified parameter name.
         value: Any object to be returned if the ``key`` does not exist.
 
       Raises:
@@ -934,7 +934,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetTime``.
 
       Args:
-        key: The fully-qualified parameter name.
+        key: The fully qualified parameter name.
 
       Raises:
         :class:`~pyzeugkiste.config.KeyError`: If ``key`` does not exist.
@@ -950,7 +950,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetTimeOr``.
 
       Args:
-        key: The fully-qualified parameter name.
+        key: The fully qualified parameter name.
         value: Any object to be returned if the ``key`` does not exist.
 
       Raises:
@@ -973,7 +973,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetDateTime``.
 
       Args:
-        key: The fully-qualified parameter name.
+        key: The fully qualified parameter name.
 
       Raises:
         :class:`~pyzeugkiste.config.KeyError`: If ``key`` does not exist.
@@ -991,7 +991,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetDateTimeOr``.
 
       Args:
-        key: The fully-qualified parameter name.
+        key: The fully qualified parameter name.
         value: Any object to be returned if the ``key`` does not exist.
 
       Raises:
@@ -1016,7 +1016,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
 
       Args:
         key: If a non-empty :class:`str` is provided, it is interpreted as the
-          fully-qualified parameter name of a list parameter. Otherwise,
+          fully qualified parameter name of a list parameter. Otherwise,
           ``self`` must be a view of an existing list parameter.
 
       .. code-block:: python
@@ -1053,7 +1053,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
           not a list.
 
       Args:
-        key: Fully-qualified parameter name of a list parameter. If an
+        key: The fully qualified parameter name of a list parameter. If an
           empty :class:`str` is provided, ``self`` must be a view of an
           existing list parameter.
         value: Any object to be returned if the given ``key`` does not exist.
@@ -1072,7 +1072,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
 
       Args:
         key: If a non-empty :class:`str` is provided, it is interpreted as the
-          fully-qualified parameter name of a list parameter. Otherwise,
+          fully qualified parameter name of a list parameter. Otherwise,
           ``self`` must be a view of an existing list parameter.
 
       .. code-block:: python
@@ -1106,7 +1106,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
           not a group, *i.e.* not convertible to a :class:`dict`.
 
       Args:
-        key: Fully-qualified parameter name of a parameter group. If an
+        key: fully qualified parameter name of a parameter group. If an
           empty :class:`str` is provided, ``self`` must be a view of an
           existing parameter group.
         value: Any object to be returned if the given ``key`` does not exist.
@@ -1126,7 +1126,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
           not a list.
 
       Args:
-        key: Fully-qualified parameter name.
+        key: fully qualified parameter name.
         dtype: Type of the output :class:`numpy.ndarray`. The following types
           are supported: :class:`numpy.float64`, `numpy.int64`, `numpy.int32`,
           and `numpy.uint8`.
@@ -1146,7 +1146,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
           not a list.
 
       Args:
-        key: Fully-qualified parameter name.
+        key: fully qualified parameter name.
         dtype: Type of the output :class:`numpy.ndarray`. The following types
           are supported: :class:`numpy.float64`, `numpy.int64`, `numpy.int32`,
           and `numpy.uint8`.
@@ -1190,7 +1190,7 @@ inline void RegisterExtendedUtils(pybind11::class_<Config> &wrapper) {
           such cases, please file a bug report.
 
       Args:
-        key: The fully-qualified parameter name which holds the file name
+        key: The fully qualified parameter name which holds the file name
           of the nested `TOML <https://toml.io/en/>`__ configuration (must
           be of type string).
       )doc";
@@ -1206,7 +1206,7 @@ inline void RegisterExtendedUtils(pybind11::class_<Config> &wrapper) {
       or the concatenation result ``"base_path / <param>"`` if they initially
       held a relative file path.
 
-      To check and adjust such paths, either the fully-qualified names
+      To check and adjust such paths, either the fully qualified names
       of all parameters can be provided, such as
       ``['file_path', 'storage.image_path', 'storage.doc_path', ...]``, or a
       pattern which uses the wildcard ``'*'``.
@@ -1221,7 +1221,7 @@ inline void RegisterExtendedUtils(pybind11::class_<Config> &wrapper) {
           be a :class:`str` or a :class:`pathlib.Path`.
         parameters: A list of parameter names or patterns.
         key: If a non-empty :class:`str` is provided, it is interpreted as the
-          fully-qualified parameter name of a sub-group. Only matching
+          fully qualified parameter name of a sub-group. Only matching
           parameters below this sub-group will be adjusted.
 
       Returns:
@@ -1280,7 +1280,7 @@ inline void RegisterExtendedUtils(pybind11::class_<Config> &wrapper) {
         replacements: A :class:`list` of ``(search_str, replacement_str)``
           pairs, *i.e.* a :class:`tuple` of :class:`str`.
         key: If a non-empty :class:`str` is provided, it is interpreted as the
-          fully-qualified parameter name of a sub-group. Replacements will only
+          fully qualified parameter name of a sub-group. Replacements will only
           affect parameters contained in this sub-group.
 
       Raises:
@@ -1314,7 +1314,7 @@ inline void RegisterExtendedUtils(pybind11::class_<Config> &wrapper) {
       pybind11::arg("key") = std::string{});
 
   doc_string = R"doc(
-      Returns the fully-qualified names/keys of all parameters below
+      Returns the fully qualified names/keys of all parameters below
       the root or specified sub-group.
 
       **Corresponding C++ API:**
@@ -1328,7 +1328,7 @@ inline void RegisterExtendedUtils(pybind11::class_<Config> &wrapper) {
         recursive: If ``True``, parameter names will be listed recursively.
           Otherwise, only the direct *children* will be listed.
         key: If a non-empty :class:`str` is provided, it is interpreted as the
-          fully-qualified parameter name of a sub-group. Replacements will only
+          fully qualified parameter name of a sub-group. Replacements will only
           affect parameters contained in this sub-group.
 
       .. code-block:: python
