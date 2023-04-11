@@ -98,8 +98,14 @@ inline void CopyList(const werkzeugkiste::config::Configuration &src,
 /// @param mat The row-major(!) matrix.
 template <typename Tp>
 pybind11::array_t<Tp> MatToArray(const werkzeugkiste::config::Matrix<Tp> &mat){
-  static_assert(mat.IsRowMajor,
-      "Matrix retrieved from configuration must be in row-major order!");
+  // LCOV_EXCL_START
+  if (!mat.IsRowMajor) {
+    // Must be a runtime check, because clang builds on macos runners fail with
+    // static_assert(mat.IsRowMajor, "MatToArray requires a row-major matrix!")
+    throw std::logic_error{"MatToArray requires a row-major matrix!"};
+  }
+  // LCOV_EXCL_STOP
+
   // By design, we always return a 2-dim matrix:
   const std::vector<ssize_t> shape{mat.rows(), mat.cols()};
   return pybind11::array_t<Tp>(
