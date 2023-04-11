@@ -1120,13 +1120,6 @@ def test_get_numpy():
     with pytest.raises(KeyError):
         cfg['unknown'].numpy_or(dtype=np.int32, value=None)
 
-    # TODO doc how to extend it
-    # 1) wzk: Add GetMatrixT to werkzeugkiste::config::Configuration
-    # 2) wzk: Add test cases to compound test
-    # 3) pzk: Extend `Config::GetMatrix`
-    # 4) pzk: Add test cases to test_get_numpy()
-
-
 
 def test_set_from_numpy():
     cfg = pyc.Config()

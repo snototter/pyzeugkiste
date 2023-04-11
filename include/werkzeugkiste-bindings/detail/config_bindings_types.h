@@ -512,6 +512,16 @@ class Config {
         def);
   }
   
+  /// @brief Converts a (nested) list of values to a numpy array.
+  ///
+  /// To add support for additional data types, we need to:
+  /// 1) Add GetMatrixType to werkzeugkiste::config::Configuration.
+  /// 2) Add test case to tests/config/compound_test in werkzeugkiste.
+  /// 3) Extend GetMatrix below.
+  /// 4) Add test case to test_get_numpy in tests/test_config.
+  ///
+  /// @param key Fully qualified parameter name.
+  /// @param dtype Type of the numpy array to return.
   pybind11::array GetMatrix(std::string_view key,
       const pybind11::object &dtype) const {
     // If a numpy.dtype is provided, invoke GetMatrix with its internal
