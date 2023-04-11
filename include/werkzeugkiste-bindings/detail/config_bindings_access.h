@@ -1133,7 +1133,38 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
           `NumPy type <https://numpy.org/doc/stable/user/basics.types.html>`__ 
           or a :class:`numpy.dtype`.
           The following types are supported: :class:`numpy.float64`,
-          `numpy.int64`, `numpy.int32`, and `numpy.uint8`.
+          :class:`numpy.float32`, :class:`numpy.int64`, :class:`numpy.int32`,
+          and :class:`numpy.uint8`.
+      
+      .. code-block:: python
+         :caption: Example: Query list parameters as numpy.ndarray
+
+         from pyzeugkiste import config as pyc
+         cfg = pyc.load_toml_str("""
+            mat = [
+              [800,   0, 200],
+              [  0, 750, 255]
+            
+            lst = [1, 2, 3]
+            ]""")
+
+         mat = cfg['mat'].numpy(dtype=np.int32)
+         mat = cfg.numpy('mat', dtype=np.int32)
+         assert mat.dtype == np.int32
+         assert mat.shape == (2, 3)
+
+         # The following will raise a pyc.TypeError, because the values
+         # cannot be represented by the given dtype (max value for uint8
+         # is 255).
+         cfg['mat'].numpy(dtype=np.uint8)
+
+         # A single list ("1D matrix") will always be returned as a
+         # 2D matrix with shape (N, 1), i.e. a row vector.          
+         vec = cfg['lst'].numpy(dtype=np.float32)
+         vec = cfg.numpy('lst', dtype=np.float32)
+         assert vec.dtype == np.float32
+         assert vec.ndim == 2
+         assert vec.shape == (3, 1)
       )doc";
   wrapper.def("numpy",
       &Config::GetMatrix,
@@ -1151,9 +1182,12 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
 
       Args:
         key: fully qualified parameter name.
-        dtype: Type of the output :class:`numpy.ndarray`. The following types
-          are supported: :class:`numpy.float64`, `numpy.int64`, `numpy.int32`,
-          and `numpy.uint8`.
+        dtype: Type of the output :class:`numpy.ndarray`. Can either be a 
+          `NumPy type <https://numpy.org/doc/stable/user/basics.types.html>`__ 
+          or a :class:`numpy.dtype`.
+          The following types are supported: :class:`numpy.float64`,
+          :class:`numpy.float32`, :class:`numpy.int64`, :class:`numpy.int32`,
+          and :class:`numpy.uint8`.
         value: Any object to be returned if the given ``key`` does not exist. 
       )doc";
   wrapper.def("numpy_or",

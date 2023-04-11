@@ -540,7 +540,9 @@ class Config {
       return MatToArray(ImmutableConfig().GetMatrixDouble(fqn));
     }
 
-    // TODO add float32
+    if (tp_name.compare("float32") == 0) {
+      return MatToArray(ImmutableConfig().GetMatrixFloat(fqn));
+    }
     
     if (tp_name.compare("int64") == 0) {
       return MatToArray(ImmutableConfig().GetMatrixInt64(fqn));
