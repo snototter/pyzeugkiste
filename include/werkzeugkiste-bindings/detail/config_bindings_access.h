@@ -66,7 +66,14 @@ inline void RegisterEnums(pybind11::module &m) {
           "configuration.")
       .value("NullString",
           werkzeugkiste::config::NullValuePolicy::NullString,
-          "Null values will be **replaced** by the string ``'null'``.");
+          "Null values will be **replaced** by the string ``'null'``.")
+      .value("EmptyList",
+          werkzeugkiste::config::NullValuePolicy::EmptyList,
+          "Null values will be **replaced** by an empty list.")
+      .value("Fail",
+          werkzeugkiste::config::NullValuePolicy::Fail,
+          "A :class:`~pyzeugkiste.config.ParseError` will be raised upon "
+          "parsing null values.");
 }
 
 inline void RegisterLoading(pybind11::module &m) {
