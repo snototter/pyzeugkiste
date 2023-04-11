@@ -2,6 +2,8 @@
 #define WERKZEUGKISTE_BINDINGS_CONFIG_DETAIL_TYPES_H
 
 #include <pybind11/chrono.h>
+#include <pybind11/numpy.h>
+#include <pybind11/eigen.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -32,18 +34,17 @@ inline void CopyList(const werkzeugkiste::config::Configuration &src,
 
   const std::size_t size_src = src.Size(fqn_src);
   for (std::size_t idx = 0; idx < size_src; ++idx) {
-    std::string fqn_src_elem{fqn_src};
-    fqn_src_elem += '[';
-    fqn_src_elem += std::to_string(idx);
-    fqn_src_elem += ']';
-
+    const std::string fqn_src_elem =
+        werkzeugkiste::config::Configuration::KeyForListElement(
+          fqn_src, idx);
+    
     switch (src.Type(fqn_src_elem)) {
       case werkzeugkiste::config::ConfigType::Boolean:
         dst.Append(fqn_dst, src.GetBoolean(fqn_src_elem));
         break;
 
       case werkzeugkiste::config::ConfigType::Integer:
-        dst.Append(fqn_dst, src.GetInteger64(fqn_src_elem));
+        dst.Append(fqn_dst, src.GetInt64(fqn_src_elem));
         break;
 
       case werkzeugkiste::config::ConfigType::FloatingPoint:
@@ -57,12 +58,10 @@ inline void CopyList(const werkzeugkiste::config::Configuration &src,
       case werkzeugkiste::config::ConfigType::List: {
         // We need to append a list, then recurse with a
         // properly adjusted key
-        std::size_t size_dst = dst.Size(fqn_dst);
-        dst.AppendList(fqn_dst);
-        std::string fqn_dst_elem{fqn_dst};
-        fqn_dst_elem += '[';
-        fqn_dst_elem += std::to_string(size_dst);
-        fqn_dst_elem += ']';
+        const std::size_t size_dst = dst.Size(fqn_dst);
+        const std::string fqn_dst_elem =
+            werkzeugkiste::config::Configuration::KeyForListElement(
+              fqn_dst, size_dst);
         dst.AppendList(fqn_dst);
         CopyList(src, fqn_src_elem, dst, fqn_dst_elem);
         break;
@@ -85,6 +84,34 @@ inline void CopyList(const werkzeugkiste::config::Configuration &src,
         break;
     }
   }
+}
+
+/// @brief Returns a copy of the matrix as pybind11::array.
+///
+/// Currently, `MatToArray` will cause an unnecessary copy since the matrix
+/// has already been allocated by werkzeugkiste to convert a nested list into
+/// a matrix.
+/// However, since querying configuration parameters is typically not used in
+/// performance-critical code sections, this overhead seems acceptable for now.
+///
+/// @tparam Tp Type of the matrix' coefficients.
+/// @param mat The row-major(!) matrix.
+template <typename Tp>
+pybind11::array_t<Tp> MatToArray(const werkzeugkiste::config::Matrix<Tp> &mat){
+  // LCOV_EXCL_START
+  if (!mat.IsRowMajor) {
+    // Must be a runtime check, because clang builds on macos runners fail with
+    // static_assert(mat.IsRowMajor, "MatToArray requires a row-major matrix!")
+    throw std::logic_error{"MatToArray requires a row-major matrix!"};
+  }
+  // LCOV_EXCL_STOP
+
+  // By design, we always return a 2-dim matrix:
+  const std::vector<ssize_t> shape{mat.rows(), mat.cols()};
+  return pybind11::array_t<Tp>(
+      shape,  // Shape (height, width)
+      {shape[1] * sizeof(Tp), sizeof(Tp)},  // Strides (row stride, col stride)
+      mat.data());
 }
 
 /// @brief Holds the actual configuration data (to enable shared memory usage
@@ -490,6 +517,77 @@ class Config {
         /*return_def=*/true,
         def);
   }
+  
+  /// @brief Converts a (nested) list of values to a numpy array.
+  ///
+  /// To add support for additional data types, we need to:
+  /// 1) Add GetMatrixType to werkzeugkiste::config::Configuration.
+  /// 2) Add test case to tests/config/compound_test in werkzeugkiste.
+  /// 3) Extend GetMatrix below.
+  /// 4) Add test case to test_get_numpy in tests/test_config.
+  ///
+  /// @param key Fully qualified parameter name.
+  /// @param dtype Type of the numpy array to return.
+  pybind11::array GetMatrix(std::string_view key,
+      const pybind11::object &dtype) const {
+    // If a numpy.dtype is provided, invoke GetMatrix with its internal
+    // pytype instead.
+    if (pybind11::isinstance<pybind11::dtype>(dtype)) {
+      return GetMatrix(key, dtype.attr("type"));
+    }
+
+    if (!pybind11::isinstance<pybind11::type>(dtype)) {
+      std::string msg{"Invalid dtype (`"};
+      msg += pybind11::cast<std::string>(dtype.attr("__class__").attr("__name__"));
+      msg += "`) provided, expected either a plain type (e.g. `numpy.float64`)"
+             " or a `numpy.dtype` (e.g. `numpy.dtype.float64`)!";
+      throw werkzeugkiste::config::TypeError{msg};
+    }
+
+    // Cannot use builtins like pybind11::type::of<double>, see
+    // https://github.com/pybind/pybind11/issues/2486
+    // Instead, we can us the following string comparison to determine the
+    // requested output dtype:
+    const std::string tp_name = pybind11::cast<std::string>(
+        dtype.attr("__name__"));
+    const std::string fqn = Key(key);
+
+    if (tp_name.compare("float64") == 0) {
+      return MatToArray(ImmutableConfig().GetMatrixDouble(fqn));
+    }
+
+    if (tp_name.compare("float32") == 0) {
+      return MatToArray(ImmutableConfig().GetMatrixFloat(fqn));
+    }
+    
+    if (tp_name.compare("int64") == 0) {
+      return MatToArray(ImmutableConfig().GetMatrixInt64(fqn));
+    }
+
+    if (tp_name.compare("int32") == 0) {
+      return MatToArray(ImmutableConfig().GetMatrixInt32(fqn));
+    }
+
+    if (tp_name.compare("uint8") == 0) {
+      return MatToArray(ImmutableConfig().GetMatrixUInt8(fqn));
+    }
+
+    std::string msg{"Converting the configuration parameter `"};
+    msg += fqn;
+    msg += "` to a NumPy array of dtype=`" + tp_name
+        + "` is not yet supported! Please file a feature request at: "
+          "https://github.com/snototter/pyzeugkiste/issues";
+    throw werkzeugkiste::config::TypeError{msg};
+  }
+
+  pybind11::object GetMatrixOr(std::string_view key,
+      const pybind11::object &dtype,
+      const pybind11::object &def) const {
+    if (!Contains(key)) {
+      return def;
+    }
+    return GetMatrix(key, dtype);
+  }
 
   //---------------------------------------------------------------------------
   // Setter
@@ -592,11 +690,8 @@ class Config {
       const int64_t len =
           werkzeugkiste::config::checked_numcast<int64_t>(Length());
       index = (index < 0) ? (len + index) : index;
-      std::string fqn{fqn_prefix_};
-      fqn += '[';
-      fqn += std::to_string(index);
-      fqn += ']';
-      return fqn;
+      return werkzeugkiste::config::Configuration::KeyForListElement(
+        fqn_prefix_, index);
     }
 
     std::string msg{
@@ -626,11 +721,9 @@ class Config {
     pybind11::list lst{};
     const std::size_t num_el = cfg.Size(fqn);
     for (std::size_t idx = 0; idx < num_el; ++idx) {
-      std::string elem_key{fqn};
-      elem_key += '[';
-      elem_key += std::to_string(idx);
-      elem_key += ']';
-
+      const std::string elem_key = 
+          werkzeugkiste::config::Configuration::KeyForListElement(
+            fqn, idx);
       lst.append(ValueOr(cfg.Type(elem_key), elem_key, /*return_def=*/false));
     }
     return lst;
@@ -676,7 +769,7 @@ class Config {
         return pybind11::bool_{cfg.GetBoolean(fqn)};
 
       case werkzeugkiste::config::ConfigType::Integer:
-        return pybind11::int_{cfg.GetInteger64(fqn)};
+        return pybind11::int_{cfg.GetInt64(fqn)};
 
       case werkzeugkiste::config::ConfigType::FloatingPoint:
         return pybind11::float_{cfg.GetDouble(fqn)};
@@ -732,6 +825,98 @@ class Config {
     return ValueOr(type, fqn, false);
   }
 
+  template <typename TpNumpy>
+  void SetMatrixHelper(std::string_view fqn, pybind11::array arr) {
+    static_assert(std::is_arithmetic_v<TpNumpy>,
+        "Only numpy arrays of arithmetic types are supported!");
+    using TpCfg =
+        std::conditional_t<std::is_integral_v<TpNumpy>, int64_t, double>;
+
+    werkzeugkiste::config::Configuration &cfg = MutableConfig();
+    if (cfg.EnsureTypeIfExists(fqn, werkzeugkiste::config::ConfigType::List)) {
+      cfg.ClearList(fqn);
+    } else {
+      cfg.CreateList(fqn);
+    }
+
+    const std::size_t num_rows = static_cast<std::size_t>(arr.shape(0));
+    if (arr.ndim() == 1) {
+      auto proxy = arr.unchecked<TpNumpy, 1>();
+      for (std::size_t row = 0; row < num_rows; ++row) {
+        cfg.Append(fqn,
+          werkzeugkiste::config::checked_numcast<
+            TpCfg, TpNumpy, werkzeugkiste::config::TypeError>(
+              proxy(row)));
+      }
+    } else {
+      auto proxy = arr.unchecked<TpNumpy, 2>();
+      const std::size_t num_cols = static_cast<std::size_t>(arr.shape(1));
+      const bool is_2d = (num_cols > 1) && (num_rows > 1);
+      for (std::size_t row = 0; row < num_rows; ++row) {
+        const std::string nested_fqn = cfg.KeyForListElement(fqn, row);
+        if (is_2d) {
+          cfg.AppendList(fqn);
+        }
+        for (std::size_t col = 0; col < num_cols; ++col) {
+          if (is_2d) {
+            cfg.Append(nested_fqn,
+              werkzeugkiste::config::checked_numcast<
+                TpCfg, TpNumpy, werkzeugkiste::config::TypeError>(
+                  proxy(row, col)));
+          } else {
+            cfg.Append(fqn,
+              werkzeugkiste::config::checked_numcast<
+                TpCfg, TpNumpy, werkzeugkiste::config::TypeError>(
+                  proxy(row, col)));
+          }
+        }
+      }
+    }
+  }
+
+  void SetMatrix(std::string_view fqn, const pybind11::array &arr) {
+    if (pybind11::isinstance<pybind11::array_t<uint8_t>>(arr)) {
+      SetMatrixHelper<uint8_t>(fqn, arr);
+    } else if (pybind11::isinstance<pybind11::array_t<bool>>(arr)) {
+      SetMatrixHelper<bool>(fqn, arr);
+    } else if (pybind11::isinstance<pybind11::array_t<int16_t>>(arr)) {
+      SetMatrixHelper<int16_t>(fqn, arr);
+    } else if (pybind11::isinstance<pybind11::array_t<uint16_t>>(arr)) {
+      SetMatrixHelper<uint16_t>(fqn, arr);
+    } else if (pybind11::isinstance<pybind11::array_t<int32_t>>(arr)) {
+      SetMatrixHelper<int32_t>(fqn, arr);
+    } else if (pybind11::isinstance<pybind11::array_t<uint32_t>>(arr)) {
+      SetMatrixHelper<uint32_t>(fqn, arr);
+    } else if (pybind11::isinstance<pybind11::array_t<int64_t>>(arr)) {
+      SetMatrixHelper<int64_t>(fqn, arr);
+    } else if (pybind11::isinstance<pybind11::array_t<uint64_t>>(arr)) {
+      SetMatrixHelper<uint64_t>(fqn, arr);
+    } else if (pybind11::isinstance<pybind11::array_t<float>>(arr)) {
+      SetMatrixHelper<float>(fqn, arr);
+    } else if (pybind11::isinstance<pybind11::array_t<double>>(arr)) {
+      SetMatrixHelper<double>(fqn, arr);
+    } else {
+      const pybind11::dtype dtype = arr.dtype();
+      std::string msg{"Cannot set parameter `"};
+      msg += fqn;
+      msg += "` from numpy array with incompatible `dtype ("
+          + pybind11::cast<std::string>(dtype.attr("name")) + ", \"";
+      const pybind11::list dt_descr = pybind11::cast<pybind11::list>(dtype.attr("descr"));
+      for (std::size_t i = 0; i < dt_descr.size(); ++i) {
+        // First element holds the optional name, second one holds the
+        // type description we're interested in, check for example:
+        // https://numpy.org/doc/stable/reference/generated/numpy.dtype.descr.html
+        const pybind11::tuple td = pybind11::cast<pybind11::tuple>(dt_descr[i]);
+        msg += pybind11::cast<std::string>(td[1]);
+        if (i < dt_descr.size() - 1) {
+          msg += "\", \"";
+        }
+      }
+      msg += ")`!";
+      throw werkzeugkiste::config::TypeError{msg};
+    }
+  }
+
   void Set(std::string_view fqn, pybind11::handle value) {
     werkzeugkiste::config::Configuration &cfg = MutableConfig();
     const std::string py_typestr =
@@ -764,7 +949,7 @@ class Config {
     } else if (pybind11::isinstance<pybind11::bool_>(value)) {
       cfg.SetBoolean(fqn, value.cast<bool>());
     } else if (pybind11::isinstance<pybind11::int_>(value)) {
-      cfg.SetInteger64(fqn, value.cast<int64_t>());
+      cfg.SetInt64(fqn, value.cast<int64_t>());
     } else if (pybind11::isinstance<pybind11::float_>(value)) {
       cfg.SetDouble(fqn, value.cast<double>());
     } else if (pybind11::isinstance<pybind11::list>(value) ||
@@ -779,6 +964,8 @@ class Config {
       cfg.SetGroup(fqn, PyDictToConfiguration(value.cast<pybind11::dict>()));
     } else if (pybind11::isinstance<Config>(value)) {
       cfg.SetGroup(fqn, value.cast<Config>().ImmutableConfig());
+    } else if (pybind11::isinstance<pybind11::array>(value)) {
+      SetMatrix(fqn, value.cast<pybind11::array>());
     } else {
       if (py_typestr.compare("date") == 0) {
         cfg.SetDate(fqn, PyObjToDate(value));
@@ -827,12 +1014,11 @@ class Config {
       cfg.Append(fqn, value.cast<double>());
     } else if (pybind11::isinstance<pybind11::list>(value) ||
                pybind11::isinstance<pybind11::tuple>(value)) {
-      std::size_t sz = cfg.Size(fqn);
+      const std::size_t size_list = cfg.Size(fqn);
+      const std::string fqn_nested =
+          werkzeugkiste::config::Configuration::KeyForListElement(
+            fqn, size_list);
       cfg.AppendList(fqn);
-      std::string fqn_nested{fqn};
-      fqn_nested += '[';
-      fqn_nested += std::to_string(sz);
-      fqn_nested += ']';
       ExtractPyIterable(cfg, fqn_nested, value);
     } else if (pybind11::isinstance<pybind11::dict>(value)) {
       cfg.Append(fqn, PyDictToConfiguration(value.cast<pybind11::dict>()));
@@ -883,12 +1069,11 @@ inline void ExtractPyIterable(werkzeugkiste::config::Configuration &cfg,
     } else if (pybind11::isinstance<pybind11::float_>(value)) {
       cfg.Append(key, value.cast<double>());
     } else if (pybind11::isinstance<pybind11::list>(value)) {
-      std::size_t sz = cfg.Size(key);
+      const std::size_t size_list = cfg.Size(key);
+      const std::string elem_key =
+          werkzeugkiste::config::Configuration::KeyForListElement(
+            key, size_list);
       cfg.AppendList(key);
-      std::string elem_key{key};
-      elem_key += '[';
-      elem_key += std::to_string(sz);
-      elem_key += ']';
       ExtractPyIterable(cfg, elem_key, value);
     } else if (pybind11::isinstance<Config>(value)) {
       cfg.Append(key, value.cast<Config>().ImmutableConfig());
@@ -942,7 +1127,7 @@ inline werkzeugkiste::config::Configuration PyDictToConfiguration(
     } else if (pybind11::isinstance<pybind11::bool_>(item.second)) {
       cfg.SetBoolean(key, item.second.cast<bool>());
     } else if (pybind11::isinstance<pybind11::int_>(item.second)) {
-      cfg.SetInteger64(key, item.second.cast<int64_t>());
+      cfg.SetInt64(key, item.second.cast<int64_t>());
     } else if (pybind11::isinstance<pybind11::float_>(item.second)) {
       cfg.SetDouble(key, item.second.cast<double>());
     } else if (pybind11::isinstance<pybind11::list>(item.second) ||
