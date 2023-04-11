@@ -1021,6 +1021,7 @@ inline void ExtractPyIterable(werkzeugkiste::config::Configuration &cfg,
       const std::string elem_key =
           werkzeugkiste::config::Configuration::KeyForListElement(
             key, size_list);
+      cfg.AppendList(key);
       ExtractPyIterable(cfg, elem_key, value);
     } else if (pybind11::isinstance<Config>(value)) {
       cfg.Append(key, value.cast<Config>().ImmutableConfig());
