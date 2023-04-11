@@ -1117,6 +1117,8 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
       pybind11::arg("key"),
       pybind11::arg("value"));
   
+  // TODO add example dtype=np.int32 vs dtype=other_mat.dtype
+  // TODO update list of supported types
   doc_string = R"doc(
       Returns a list/nested list parameter as :class:`numpy.ndarray`.
 
@@ -1126,10 +1128,12 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
           not a list.
 
       Args:
-        key: fully qualified parameter name.
-        dtype: Type of the output :class:`numpy.ndarray`. The following types
-          are supported: :class:`numpy.float64`, `numpy.int64`, `numpy.int32`,
-          and `numpy.uint8`.
+        key: Fully qualified parameter name.
+        dtype: Type of the output :class:`numpy.ndarray`. Can either be a 
+          `NumPy type <https://numpy.org/doc/stable/user/basics.types.html>`__ 
+          or a :class:`numpy.dtype`.
+          The following types are supported: :class:`numpy.float64`,
+          `numpy.int64`, `numpy.int32`, and `numpy.uint8`.
       )doc";
   wrapper.def("numpy",
       &Config::GetMatrix,

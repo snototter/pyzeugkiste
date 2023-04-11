@@ -993,12 +993,18 @@ def test_get_numpy():
     cfg['col-major'] = mat_f
     
     ret_c = cfg['row-major'].numpy(dtype=np.float64)
+    assert ret_c.flags.c_contiguous
     assert np.array_equiv(mat_c, ret_c)
-    ret_c = cfg['row-major'].numpy(dtype=mat_c.dtype) #TODO not yet supported :/
+    ret_c = cfg['row-major'].numpy(dtype=mat_c.dtype)
+    assert ret_c.flags.c_contiguous
+    assert np.array_equiv(mat_c, ret_c)
+
+    ret_f = cfg['col-major'].numpy(dtype=np.float64)
+    assert ret_f.flags.c_contiguous  # Returned matrix is always C-contiguous
+    assert np.array_equiv(mat_c, ret_f)
     ret_f = cfg['col-major'].numpy(dtype=mat_f.dtype)
-    # FIXME potential bug when serializing the list:
-    # assertion message prints an incorrect serialization (empty entries!):
-    #  list = [ [ 1, 2, 3 ], [], [ 4, 6, 7 ], [] ]
+    assert ret_f.flags.c_contiguous
+    assert np.array_equiv(mat_c, ret_f)
 
     ###########################################################################
     # Load matrices as single-precision float

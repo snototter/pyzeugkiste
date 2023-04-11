@@ -513,7 +513,21 @@ class Config {
   }
   
   pybind11::array GetMatrix(std::string_view key,
-      const pybind11::type &dtype) const {
+      const pybind11::object &dtype) const {
+    // If a numpy.dtype is provided, invoke GetMatrix with its internal
+    // pytype instead.
+    if (pybind11::isinstance<pybind11::dtype>(dtype)) {
+      return GetMatrix(key, dtype.attr("type"));
+    }
+
+    if (!pybind11::isinstance<pybind11::type>(dtype)) {
+      std::string msg{"Invalid dtype (`"};
+      msg += pybind11::cast<std::string>(dtype.attr("__class__").attr("__name__"));
+      msg += "`) provided, expected either a plain type (e.g. `numpy.float64`)"
+             " or a `numpy.dtype` (e.g. `numpy.dtype.float64`)!";
+      throw werkzeugkiste::config::TypeError{msg};
+    }
+
     // Cannot use builtins like pybind11::type::of<double>, see
     // https://github.com/pybind/pybind11/issues/2486
     // Instead, we can us the following string comparison to determine the
@@ -525,6 +539,8 @@ class Config {
     if (tp_name.compare("float64") == 0) {
       return MatToArray(ImmutableConfig().GetMatrixDouble(fqn));
     }
+
+    // TODO add float32
     
     if (tp_name.compare("int64") == 0) {
       return MatToArray(ImmutableConfig().GetMatrixInt64(fqn));
