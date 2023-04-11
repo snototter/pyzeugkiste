@@ -34,11 +34,10 @@ inline void CopyList(const werkzeugkiste::config::Configuration &src,
 
   const std::size_t size_src = src.Size(fqn_src);
   for (std::size_t idx = 0; idx < size_src; ++idx) {
-    std::string fqn_src_elem{fqn_src};
-    fqn_src_elem += '[';
-    fqn_src_elem += std::to_string(idx);
-    fqn_src_elem += ']';
-
+    const std::string fqn_src_elem =
+        werkzeugkiste::config::Configuration::KeyForListElement(
+          fqn_src, idx);
+    
     switch (src.Type(fqn_src_elem)) {
       case werkzeugkiste::config::ConfigType::Boolean:
         dst.Append(fqn_dst, src.GetBoolean(fqn_src_elem));
@@ -59,12 +58,10 @@ inline void CopyList(const werkzeugkiste::config::Configuration &src,
       case werkzeugkiste::config::ConfigType::List: {
         // We need to append a list, then recurse with a
         // properly adjusted key
-        std::size_t size_dst = dst.Size(fqn_dst);
-        dst.AppendList(fqn_dst);
-        std::string fqn_dst_elem{fqn_dst};
-        fqn_dst_elem += '[';
-        fqn_dst_elem += std::to_string(size_dst);
-        fqn_dst_elem += ']';
+        const std::size_t size_dst = dst.Size(fqn_dst);
+        const std::string fqn_dst_elem =
+            werkzeugkiste::config::Configuration::KeyForListElement(
+              fqn_dst, size_dst);
         dst.AppendList(fqn_dst);
         CopyList(src, fqn_src_elem, dst, fqn_dst_elem);
         break;
@@ -659,11 +656,8 @@ class Config {
       const int64_t len =
           werkzeugkiste::config::checked_numcast<int64_t>(Length());
       index = (index < 0) ? (len + index) : index;
-      std::string fqn{fqn_prefix_};
-      fqn += '[';
-      fqn += std::to_string(index);
-      fqn += ']';
-      return fqn;
+      return werkzeugkiste::config::Configuration::KeyForListElement(
+        fqn_prefix_, index);
     }
 
     std::string msg{
@@ -693,11 +687,9 @@ class Config {
     pybind11::list lst{};
     const std::size_t num_el = cfg.Size(fqn);
     for (std::size_t idx = 0; idx < num_el; ++idx) {
-      std::string elem_key{fqn};
-      elem_key += '[';
-      elem_key += std::to_string(idx);
-      elem_key += ']';
-
+      const std::string elem_key = 
+          werkzeugkiste::config::Configuration::KeyForListElement(
+            fqn, idx);
       lst.append(ValueOr(cfg.Type(elem_key), elem_key, /*return_def=*/false));
     }
     return lst;
@@ -970,12 +962,11 @@ class Config {
       cfg.Append(fqn, value.cast<double>());
     } else if (pybind11::isinstance<pybind11::list>(value) ||
                pybind11::isinstance<pybind11::tuple>(value)) {
-      std::size_t sz = cfg.Size(fqn);
+      const std::size_t size_list = cfg.Size(fqn);
+      const std::string fqn_nested =
+          werkzeugkiste::config::Configuration::KeyForListElement(
+            fqn, size_list);
       cfg.AppendList(fqn);
-      std::string fqn_nested{fqn};
-      fqn_nested += '[';
-      fqn_nested += std::to_string(sz);
-      fqn_nested += ']';
       ExtractPyIterable(cfg, fqn_nested, value);
     } else if (pybind11::isinstance<pybind11::dict>(value)) {
       cfg.Append(fqn, PyDictToConfiguration(value.cast<pybind11::dict>()));
@@ -1026,7 +1017,10 @@ inline void ExtractPyIterable(werkzeugkiste::config::Configuration &cfg,
     } else if (pybind11::isinstance<pybind11::float_>(value)) {
       cfg.Append(key, value.cast<double>());
     } else if (pybind11::isinstance<pybind11::list>(value)) {
-      std::size_t sz = cfg.Size(key);
+      const std::size_t size_list = cfg.Size(key);
+      const std::string elem_key =
+          werkzeugkiste::config::Configuration::KeyForListElement(
+            key, size_list);
       cfg.AppendList(key);
       std::string elem_key{key};
       elem_key += '[';
