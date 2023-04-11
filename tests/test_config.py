@@ -438,6 +438,28 @@ def test_size():
         len(cfg['no-such-key'])
 
 
+def test_parameter_len():
+    cfg = pyc.load_toml_str("""
+        str = 'value'
+        int = 3
+
+        [values]
+        str = 'hello'
+        int = 42
+        flt = 1e-3
+        arr = [1, 2, 3]
+        """)
+
+    assert len(cfg) == 3
+    assert cfg.parameter_len('') == 3
+
+    assert len(cfg['values']) == 4
+    assert cfg.parameter_len('values') == 4
+
+    assert len(cfg['values']['arr']) == 3
+    assert cfg.parameter_len('values.arr') == 3
+
+
 def test_keys():
     cfg = pyc.load_toml_str("""
         [scalars]
@@ -961,6 +983,10 @@ def test_get_numpy():
     assert pytest.approx(0) == mat[2, 1]
     assert pytest.approx(1) == mat[2, 2]
 
+    # Test default parameters:
+    default = cfg['camera-matrix'].numpy()
+    assert np.array_equal(mat, default)
+
     # Alternatively, we can look it up via:
     tmp = cfg.numpy(key='camera-matrix', dtype=np.float64)
     assert np.allclose(tmp, mat)
@@ -1080,7 +1106,20 @@ def test_get_numpy():
     assert mat.flags.c_contiguous
     assert 0 == len(mat)
 
-    # TODO add GetMatrixFloat to wzk and pzk
+    ###########################################################################
+    # Test optional matrices
+    mat = cfg.numpy_or('mat-uint8', dtype=np.int32, value=None)
+    assert mat.dtype == np.int32
+    assert mat.shape == (3, 2)
+
+    mat = cfg.numpy_or('unknown', dtype=np.int32, value=None)
+    assert mat is None
+
+    # The _or getter can't be invoked without a key, because the __getitem__
+    # lookup would already fail:
+    with pytest.raises(KeyError):
+        cfg['unknown'].numpy_or(dtype=np.int32, value=None)
+
     # TODO doc how to extend it
     # 1) wzk: Add GetMatrixT to werkzeugkiste::config::Configuration
     # 2) wzk: Add test cases to compound test
@@ -1117,11 +1156,41 @@ def test_set_from_numpy():
     with pytest.raises(ValueError):
         cfg['chan3'] = np.zeros((5, 4, 3), dtype=np.int32)
 
-    ## 1D matrix Nx1
-    # TODO
+    ## Boolean arrays are supported
+    cfg['bools'] = np.array([True, False, True], dtype=bool)
+    assert 'bools' in cfg
+    assert 3 == len(cfg['bools'])
+    assert [True, False, True] == cfg['bools'].list()
 
+    ## 1D matrix Nx1
+    arr = np.array([1, 2, 3, 4], dtype=np.int32).reshape((4, 1))
+    assert arr.shape == (4, 1)
+    cfg['arr-1d'] = arr
+    assert 'arr-1d' in cfg
+    assert 4 == len(cfg['arr-1d'])
+    assert [1, 2, 3, 4] == cfg['arr-1d'].list()
+    mat = cfg['arr-1d'].numpy(dtype=np.int32)
+    assert mat.shape == (4, 1)
+    
     ## 1D matrix 1xN
-    # TODO
+    arr = np.array([1, 2], dtype=np.int32).reshape((1, 2))
+    assert arr.shape == (1, 2)
+    cfg['arr-1d'] = arr
+    assert 'arr-1d' in cfg
+    assert 2 == len(cfg['arr-1d'])
+    assert [1, 2] == cfg['arr-1d'].list()
+    mat = cfg['arr-1d'].numpy(dtype=np.int32)
+    assert mat.shape == (2, 1)
 
     ## Vector (N,)
-    # TODO
+    # Will be stored as single list and retrieved as a Nx1 matrix:
+    arr = np.array([1, 2, 3], dtype=np.int32)
+    assert arr.shape == (3,)
+    cfg['arr-1d'] = arr
+    assert 'arr-1d' in cfg
+    assert 3 == len(cfg['arr-1d'])
+    assert [1, 2, 3] == cfg['arr-1d'].list()
+    mat = cfg['arr-1d'].numpy(dtype=np.int32)
+    assert mat.shape == (3, 1)
+
+    

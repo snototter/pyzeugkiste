@@ -565,7 +565,7 @@ class Config {
   }
 
   pybind11::object GetMatrixOr(std::string_view key,
-      const pybind11::dtype &dtype,
+      const pybind11::object &dtype,
       const pybind11::object &def) const {
     if (!Contains(key)) {
       return def;
@@ -827,16 +827,32 @@ class Config {
     if (arr.ndim() == 1) {
       auto proxy = arr.unchecked<TpNumpy, 1>();
       for (std::size_t row = 0; row < num_rows; ++row) {
-        cfg.Append(fqn, werkzeugkiste::config::checked_numcast<TpCfg, TpNumpy, werkzeugkiste::config::TypeError>(proxy(row)));
+        cfg.Append(fqn,
+          werkzeugkiste::config::checked_numcast<
+            TpCfg, TpNumpy, werkzeugkiste::config::TypeError>(
+              proxy(row)));
       }
     } else {
       auto proxy = arr.unchecked<TpNumpy, 2>();
       const std::size_t num_cols = static_cast<std::size_t>(arr.shape(1));
+      const bool is_2d = (num_cols > 1) && (num_rows > 1);
       for (std::size_t row = 0; row < num_rows; ++row) {
         const std::string nested_fqn = cfg.KeyForListElement(fqn, row);
-        cfg.AppendList(fqn);
+        if (is_2d) {
+          cfg.AppendList(fqn);
+        }
         for (std::size_t col = 0; col < num_cols; ++col) {
-          cfg.Append(nested_fqn, werkzeugkiste::config::checked_numcast<TpCfg, TpNumpy, werkzeugkiste::config::TypeError>(proxy(row, col)));
+          if (is_2d) {
+            cfg.Append(nested_fqn,
+              werkzeugkiste::config::checked_numcast<
+                TpCfg, TpNumpy, werkzeugkiste::config::TypeError>(
+                  proxy(row, col)));
+          } else {
+            cfg.Append(fqn,
+              werkzeugkiste::config::checked_numcast<
+                TpCfg, TpNumpy, werkzeugkiste::config::TypeError>(
+                  proxy(row, col)));
+          }
         }
       }
     }
@@ -845,6 +861,8 @@ class Config {
   void SetMatrix(std::string_view fqn, const pybind11::array &arr) {
     if (pybind11::isinstance<pybind11::array_t<uint8_t>>(arr)) {
       SetMatrixHelper<uint8_t>(fqn, arr);
+    } else if (pybind11::isinstance<pybind11::array_t<bool>>(arr)) {
+      SetMatrixHelper<bool>(fqn, arr);
     } else if (pybind11::isinstance<pybind11::array_t<int16_t>>(arr)) {
       SetMatrixHelper<int16_t>(fqn, arr);
     } else if (pybind11::isinstance<pybind11::array_t<uint16_t>>(arr)) {
