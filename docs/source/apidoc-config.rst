@@ -120,6 +120,7 @@ Documentation
 
    ~pyzeugkiste.config.Config
    ~pyzeugkiste.config.ConfigType
+   ~pyzeugkiste.config.NullValuePolicy
    ~pyzeugkiste.config.load
    ~pyzeugkiste.config.load_toml_file
    ~pyzeugkiste.config.load_toml_str
@@ -146,6 +147,12 @@ Configuration Types
 ...................
 
 .. autoclass:: pyzeugkiste.config.ConfigType
+
+.........................
+Handling None/Null Values
+........................-
+
+.. autoclass:: pyzeugkiste.config.NullValuePolicy
 
 .......................
 Loading a Configuration
