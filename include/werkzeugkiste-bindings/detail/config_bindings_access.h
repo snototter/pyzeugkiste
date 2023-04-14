@@ -773,7 +773,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
   std::string doc_string = R"doc(
       Returns the :class:`bool` parameter.
 
-      **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetBoolean``.
+      **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetBool``.
 
       Args:
         key: The fully qualified parameter name.
@@ -789,7 +789,7 @@ inline void RegisterTypedAccess(pybind11::class_<Config> &wrapper) {
   doc_string = R"doc(
       Returns an optional :class:`bool` parameter.
 
-      **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetBooleanOr``.
+      **Corresponding C++ API:** ``werkzeugkiste::config::Configuration::GetBoolOr``.
 
       Args:
         key: The fully qualified parameter name.

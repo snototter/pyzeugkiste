@@ -40,7 +40,7 @@ inline void CopyList(const werkzeugkiste::config::Configuration &src,
     
     switch (src.Type(fqn_src_elem)) {
       case werkzeugkiste::config::ConfigType::Boolean:
-        dst.Append(fqn_dst, src.GetBoolean(fqn_src_elem));
+        dst.Append(fqn_dst, src.GetBool(fqn_src_elem));
         break;
 
       case werkzeugkiste::config::ConfigType::Integer:
@@ -766,7 +766,7 @@ class Config {
     // parameter names, in case there was a user typo).
     switch (type) {
       case werkzeugkiste::config::ConfigType::Boolean:
-        return pybind11::bool_{cfg.GetBoolean(fqn)};
+        return pybind11::bool_{cfg.GetBool(fqn)};
 
       case werkzeugkiste::config::ConfigType::Integer:
         return pybind11::int_{cfg.GetInt64(fqn)};
@@ -947,7 +947,7 @@ class Config {
     if (pybind11::isinstance<pybind11::str>(value)) {
       cfg.SetString(fqn, value.cast<std::string>());
     } else if (pybind11::isinstance<pybind11::bool_>(value)) {
-      cfg.SetBoolean(fqn, value.cast<bool>());
+      cfg.SetBool(fqn, value.cast<bool>());
     } else if (pybind11::isinstance<pybind11::int_>(value)) {
       cfg.SetInt64(fqn, value.cast<int64_t>());
     } else if (pybind11::isinstance<pybind11::float_>(value)) {
@@ -1125,7 +1125,7 @@ inline werkzeugkiste::config::Configuration PyDictToConfiguration(
     if (pybind11::isinstance<pybind11::str>(item.second)) {
       cfg.SetString(key, item.second.cast<std::string>());
     } else if (pybind11::isinstance<pybind11::bool_>(item.second)) {
-      cfg.SetBoolean(key, item.second.cast<bool>());
+      cfg.SetBool(key, item.second.cast<bool>());
     } else if (pybind11::isinstance<pybind11::int_>(item.second)) {
       cfg.SetInt64(key, item.second.cast<int64_t>());
     } else if (pybind11::isinstance<pybind11::float_>(item.second)) {
